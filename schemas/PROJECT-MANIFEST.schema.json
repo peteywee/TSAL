@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/peteywee/TSAL/schemas/PROJECT-MANIFEST.schema.json",
+  "title": "TSAL Project Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tsal_version", "project", "automations", "integration"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "0.2"},
+    "tsal_version": {"type": "string", "pattern": "^0\\.2(?:\\..*)?$"},
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "owner", "kind"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "enum": ["automation", "application", "platform", "service", "library", "infrastructure", "other"]},
+        "repository": {"type": ["string", "null"]},
+        "description": {"type": "string"}
+      }
+    },
+    "automations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contract"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "contract": {"type": "string", "minLength": 1},
+          "enabled": {"type": "boolean", "default": true},
+          "risk": {"type": "string", "enum": ["R0", "R1", "R2", "R3"]}
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence_directory": {"type": "string"},
+        "incidents_directory": {"type": "string"},
+        "runbook": {"type": "string"},
+        "architecture": {"type": "string"}
+      }
+    },
+    "integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapters", "control_plane"],
+      "properties": {
+        "adapters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "type", "mode"],
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "type": {"type": "string", "minLength": 1},
+              "mode": {"type": "string", "enum": ["read", "write", "read_write"]},
+              "configuration": {"type": ["string", "null"]},
+              "required": {"type": "boolean", "default": false}
+            }
+          }
+        },
+        "control_plane": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "type": {"type": ["string", "null"]},
+            "endpoint": {"type": ["string", "null"]},
+            "project_key": {"type": ["string", "null"]}
+          }
+        }
+      }
+    },
+    "metadata": {"type": "object", "additionalProperties": true}
+  }
+}
