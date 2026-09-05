@@ -1,0 +1,18 @@
+{
+  "name": "@topshelf/tsal",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Top Shelf Automation Lifecycle standard and local-first conformance tooling",
+  "type": "module",
+  "bin": {
+    "tsal": "./tooling/cli.mjs"
+  },
+  "scripts": {
+    "doctor": "node tooling/cli.mjs doctor .",
+    "test": "node --test",
+    "verify": "node tooling/verify-repo.mjs && node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

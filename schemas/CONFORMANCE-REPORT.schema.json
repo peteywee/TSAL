@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/peteywee/TSAL/schemas/CONFORMANCE-REPORT.schema.json",
+  "title": "TSAL Conformance Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "tsal_version", "evaluated_at", "result", "checks"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "0.2"},
+    "project_id": {"type": "string", "minLength": 1},
+    "automation_id": {"type": ["string", "null"]},
+    "tsal_version": {"type": "string", "minLength": 1},
+    "candidate": {"type": ["string", "null"]},
+    "evaluated_at": {"type": "string", "format": "date-time"},
+    "evaluator": {"type": "string"},
+    "result": {"type": "string", "enum": ["pass", "fail", "incomplete"]},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "requirement", "result"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "requirement": {"type": "string", "minLength": 1},
+          "result": {"type": "string", "enum": ["pass", "fail", "not_applicable", "manual_review"]},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "blocking_findings": {"type": "array", "items": {"type": "string"}},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}

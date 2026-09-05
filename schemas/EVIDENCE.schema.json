@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/peteywee/TSAL/schemas/EVIDENCE.schema.json",
+  "title": "TSAL Evidence Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evidence_id", "project_id", "produced_at", "claim", "result", "provenance"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "0.2"},
+    "evidence_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "automation_id": {"type": ["string", "null"]},
+    "tsal_version": {"type": "string", "minLength": 1},
+    "candidate": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string"},
+        "id": {"type": "string"},
+        "immutable": {"type": "boolean"}
+      }
+    },
+    "produced_at": {"type": "string", "format": "date-time"},
+    "claim": {"type": "string", "minLength": 1},
+    "result": {"type": "string", "enum": ["pass", "fail", "unknown", "informational"]},
+    "evidence_type": {"type": "string", "enum": ["test", "preflight", "runtime", "remote_observation", "manual_attestation", "conformance", "reconciliation", "other"]},
+    "details": {"type": "object", "additionalProperties": true},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer", "source"],
+      "properties": {
+        "producer": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1},
+        "run_id": {"type": ["string", "null"]},
+        "actor": {"type": ["string", "null"]}
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {"type": ["string", "null"]},
+        "signature": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

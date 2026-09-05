@@ -2,177 +2,174 @@
 
 **Top Shelf Automation Lifecycle**
 
-TSAL is a technology-agnostic standard for designing, verifying, deploying, operating, recovering, and improving automations that may perform real-world side effects.
-
-It exists to answer a harder question than “can this task be automated?”:
+TSAL is a local-first, technology-agnostic automation engineering standard with machine-readable project, evidence, incident, and integration boundaries.
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-TSAL was extracted from real operational failures and fixes rather than designed as a theory-first framework. Its first reference workload is XQueue, a production scheduled publisher whose failure modes forced explicit treatment of side effects, deterministic scheduling, concurrency, durable state, ambiguous remote outcomes, stale backlog, reconciliation, and production authority.
+Current version: **0.2.0 — platform foundation**
 
-TSAL itself contains no X-, Cloudflare-, GitHub-, database-, language-, runtime-, or vendor-specific assumptions.
+## Architecture
 
-## Status
-
-Current maturity: **v0.1 — bootstrap standard**
-
-The standard is deliberately small. New rules should be promoted only when repeated evidence or high-impact incidents justify them.
-
-## Core invariant
-
-An automation MUST NOT receive more execution authority than can be bounded, observed, verified, and safely recovered.
-
-A production automation therefore needs, as applicable:
-
-- an explicit goal;
-- a source of truth;
-- explicit policy;
-- defined work units;
-- a state model;
-- a single or explicitly coordinated execution authority;
-- bounded side effects;
-- idempotency or equivalent duplicate protection;
-- explicit handling of ambiguous outcomes;
-- verification and evidence;
-- recovery and reconciliation procedures;
-- owner-reserved actions where automation cannot decide safely.
-
-## Canonical model
+TSAL is deliberately split into a stable trunk and replaceable branches:
 
 ```text
-GOAL
-  ↓
-POLICY
-  ↓
-SOURCE OF TRUTH
-  ↓
-PLAN
-  ↓
-PRECONDITIONS / PREFLIGHT
-  ↓
-NON-MUTATING SIMULATION
-  ↓
-AUTHORITY GATE
-  ↓
-RECORD INTENT
-  ↓
-EXECUTE BOUNDED WORK
-  ↓
-┌───────────────┬─────────────────┐
-│ KNOWN OUTCOME │ UNKNOWN OUTCOME │
-└───────┬───────┴────────┬────────┘
-        ↓                ↓
-   RECORD RESULT     RECONCILE
-        └────────┬───────┘
-                 ↓
-              VERIFY
-                 ↓
-          UPDATE LEDGER
-                 ↓
-          HEALTH / EVIDENCE
-                 ↓
-          EXTRACT LESSONS
-                 ↓
-        IMPROVE THE STANDARD
+                         OPTIONAL CONTROL PLANE
+                     (TOS / registry / dashboard)
+                                ▲
+                                │
+                      integration interfaces
+                                │
+            ┌───────────────────┼───────────────────┐
+            ▼                   ▼                   ▼
+     project manifest        evidence           incidents
+            └───────────────────┼───────────────────┘
+                                ▼
+                       conformance/tooling
+                                │
+                                ▼
+                            TSAL CORE
+                    lifecycle + invariants
 ```
+
+The core MUST NOT depend on TOS, AI, GitHub, Cloudflare, Supabase, a scheduler, or a language runtime.
+
+Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) and [`docs/INTEGRATION-MODEL.md`](./docs/INTEGRATION-MODEL.md).
+
+## Stable project socket
+
+Projects do **not** clone TSAL. They connect to it by exposing:
+
+```text
+tsal.project.json
+```
+
+That manifest identifies the project, targeted TSAL version, automation contracts, evidence/incident locations, adapters, and optional control-plane connection.
+
+```text
+my-automation/
+├── tsal.project.json
+├── automation.contract.json
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── RUNBOOK.md
+│   └── incidents/
+└── evidence/
+```
+
+A future TOS control plane, CI pipeline, AI assistant, or local tool can consume the same interface.
+
+## Local-first tooling
+
+No AI or backend is required.
+
+```bash
+node tooling/cli.mjs init ./my-automation
+node tooling/cli.mjs doctor ./my-automation
+node tooling/cli.mjs inspect ./my-automation
+npm run verify
+```
+
+AI MAY help draft, explain, classify, and inspect. Deterministic checks SHOULD enforce anything that can be mechanically proven.
 
 ## Lifecycle
 
-TSAL defines these stages:
-
 | Stage | Name | Purpose |
 |---|---|---|
-| A0 | Discover | Define the human/business problem, trigger, inputs, dependencies, and side effects. |
-| A1 | Define | State measurable success and correct non-execution. |
-| A2 | Model | Define work units, state transitions, authority, and failure semantics. |
+| A0 | Discover | Define problem, trigger, inputs, dependencies, side effects. |
+| A1 | Define | State success and correct non-execution. |
+| A2 | Model | Define work units, state, authority, ambiguity, failure semantics. |
 | A3 | Classify Risk | Scale controls to consequence and reversibility. |
-| A4 | Contract | Record the automation contract before production authority is granted. |
-| A5 | Implement | Build deterministic planning before external mutation. |
-| A6 | Verify | Prove behavior progressively from static checks through live postconditions. |
-| A7 | Adversarial Test | Intentionally exercise failure, concurrency, ambiguity, crash, and recovery paths. |
-| A8 | Cut Over | Transfer production authority only after the exact candidate passes gates. |
-| A9 | Operate & Recover | Observe invariants, fail closed where required, reconcile, and recover safely. |
-| A10 | Extract Lessons | Convert incidents and discoveries into reusable lessons. |
-| A11 | Improve Standard | Promote justified lessons into tests, controls, or TSAL rules. |
+| A4 | Contract | Record the automation contract before production authority. |
+| A5 | Implement | Build deterministic planning before mutation. |
+| A6 | Verify | Prove behavior progressively. |
+| A7 | Adversarial Test | Exercise failure, concurrency, crash, ambiguity, recovery. |
+| A8 | Cut Over | Transfer authority only after exact-candidate gates. |
+| A9 | Operate & Recover | Observe, reconcile, recover, resume safely. |
+| A10 | Extract Lessons | Convert incidents into reusable lessons. |
+| A11 | Improve Standard | Promote justified lessons into controls or rules. |
 
 See [`AUTOMATION-LIFECYCLE.md`](./AUTOMATION-LIFECYCLE.md).
+
+## Machine-readable foundation
+
+```text
+AUTOMATION-CONTRACT.schema.json
+schemas/
+├── PROJECT-MANIFEST.schema.json
+├── EVIDENCE.schema.json
+├── INCIDENT.schema.json
+└── CONFORMANCE-REPORT.schema.json
+```
+
+These deliberately separate promises, project identity, proof, incidents, and evaluations instead of collapsing operational truth into one giant state object.
+
+## Integration boundaries
+
+- [`interfaces/ADAPTER-CONTRACT.md`](./interfaces/ADAPTER-CONTRACT.md) defines provider/project adapters.
+- [`interfaces/CONTROL-PLANE-PROTOCOL.md`](./interfaces/CONTROL-PLANE-PROTOCOL.md) defines neutral semantics a future TOS control plane can implement.
+
+Intended dependency direction:
+
+```text
+TOS/control plane -> TSAL interfaces -> project facts
+```
+
+not:
+
+```text
+TSAL core -> TOS implementation
+```
 
 ## Repository structure
 
 ```text
 TSAL/
 ├── README.md
+├── VERSION
+├── tsal.project.json
 ├── AUTOMATION-LIFECYCLE.md
 ├── AUTOMATION-CONTRACT.schema.json
 ├── FAILURE-TEST-MATRIX.md
-└── references/
-    └── xqueue/
-        └── LESSONS-LEARNED.md
+├── docs/
+├── interfaces/
+├── schemas/
+├── templates/
+├── tooling/
+├── test/
+├── examples/
+└── references/xqueue/
 ```
-
-These are the minimum canonical artifacts for v0.1. Additional policy files should not be created merely to make the repository look complete.
-
-## Normative language
-
-The words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are normative:
-
-- **MUST / MUST NOT** — required for TSAL conformance.
-- **SHOULD / SHOULD NOT** — expected unless a documented reason justifies deviation.
-- **MAY** — optional.
 
 ## Fundamental rules
 
-1. **Truth before convenience.** Execution state MUST represent observed reality, not the state operators wish existed.
-2. **Unknown is a real state.** An error MUST NOT automatically be interpreted as proof that an external side effect did not occur.
-3. **Reconcile before retry when outcome is ambiguous.** Blind retry of an uncertain side effect is prohibited unless the operation is proven idempotent.
-4. **One authority unless coordination is explicit.** A production side-effect class MUST have one active execution authority or a documented coordination mechanism.
-5. **Missed work is not automatically catch-up work.** Stale work requires defined disposition semantics.
-6. **Bound the blast radius.** Production executions SHOULD have explicit limits on work count, retries, duration, mutation scope, or equivalent risk dimensions.
-7. **Separate policy from mechanism.** Business/operational rules SHOULD be independently inspectable from execution plumbing.
-8. **Derived state should be reproducible.** Generated plans SHOULD be rebuildable from source, policy, and durable execution state.
-9. **Persist intent before difficult-to-reverse side effects where ambiguity matters.** The system SHOULD be able to distinguish “never attempted” from “attempt may have escaped.”
-10. **Production readiness is environment-aware.** Passing unit tests alone MUST NOT be treated as proof that production execution is safe.
-11. **Owner-reserved actions remain reserved.** Automation MUST NOT silently expand its own authority in response to failure.
-12. **Every meaningful incident should improve either the automation or the standard.** Repeated failures without control promotion are process failures.
+1. **Truth before convenience.** Operational state represents observed reality.
+2. **Unknown is a real state.** Error is not proof that an external side effect did not occur.
+3. **Reconcile before ambiguous retry.** Blind retry is prohibited unless safety is proven.
+4. **One authority unless coordination is explicit.** Credentials are not execution authority.
+5. **Missed work is not automatically catch-up work.** Stale work requires disposition policy.
+6. **Bound the blast radius.** Bound work, retries, duration, scope, or equivalent dimensions.
+7. **Separate policy from mechanism.** Rules remain inspectable apart from execution plumbing.
+8. **Derived state should be reproducible.** Generated plans are not durable truth.
+9. **Persist intent where escaped side effects can become ambiguous.**
+10. **Production readiness is environment-aware.** Unit tests alone are insufficient.
+11. **Owner-reserved actions remain reserved.** Failure does not expand autonomous authority.
+12. **Incidents feed improvement.** Repeated failures should promote stronger controls when justified.
+13. **AI assists; deterministic controls enforce.**
+14. **TSAL core stays consumer-neutral.** New systems attach through interfaces.
 
 ## Risk classes
 
-| Class | Typical consequence | Minimum control direction |
+| Class | Typical consequence | Direction |
 |---|---|---|
-| R0 | Read-only | Validation, observability |
-| R1 | Local/reversible mutation | State tracking, rollback |
-| R2 | External/reversible mutation | Idempotency, authority, retry/reconciliation policy |
-| R3 | Public, financial, destructive, security-sensitive, or difficult-to-reverse mutation | Strong preflight, bounded execution, adversarial testing, evidence, recovery, owner-reserved boundaries |
+| R0 | Read-only | validation, observability |
+| R1 | Local/reversible mutation | state, rollback |
+| R2 | External/reversible mutation | authority, idempotency, bounded retry/reconciliation |
+| R3 | Public, financial, destructive, security-sensitive, difficult-to-reverse | strong preflight, adversarial testing, evidence, recovery, owner-reserved boundaries |
 
-Risk classification determines required controls; it does not determine implementation technology.
+## XQueue
 
-## What TSAL is not
-
-TSAL is not:
-
-- a scheduler;
-- a workflow engine;
-- a CI/CD platform;
-- an AI-agent framework;
-- a vendor abstraction layer;
-- a guarantee that all operations can be made exactly-once;
-- permission to automate every available action.
-
-TSAL is an engineering and operating standard that can govern any of those systems.
-
-## First reference workload
-
-[`references/xqueue/LESSONS-LEARNED.md`](./references/xqueue/LESSONS-LEARNED.md) maps operational lessons from XQueue into technology-agnostic rules. XQueue is evidence for TSAL, not a dependency of TSAL.
+XQueue is the first reference workload, not a dependency. [`references/xqueue/LESSONS-LEARNED.md`](./references/xqueue/LESSONS-LEARNED.md) records which lessons were promoted and which implementation choices stayed project-specific.
 
 ## Evolution rule
 
-A proposed TSAL rule SHOULD answer all of the following:
-
-1. What failure, risk, or repeated pattern justifies the rule?
-2. Is it genuinely automation-agnostic?
-3. Can it be mechanically enforced or tested?
-4. What class of automation needs it?
-5. What is the cost of enforcing it?
-6. What evidence would justify weakening or removing it?
-
-The standard should become stricter because reality demands it, not because more documentation feels safer.
+TSAL should grow like a tree: preserve the trunk, add branches through stable interfaces, and only thicken the trunk when operational evidence demands it.

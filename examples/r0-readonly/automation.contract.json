@@ -1,0 +1,97 @@
+{
+  "schema_version": "0.1",
+  "automation": {
+    "id": "example.daily-report",
+    "name": "Daily Read-Only Report",
+    "version": "0.1.0",
+    "owner": "example-owner",
+    "description": "Example TSAL R0 automation that reads data and produces a local report without external mutation."
+  },
+  "goal": {
+    "outcome": "Produce a daily summary from an authoritative data source.",
+    "success_condition": "The report accurately reflects the source data for the declared period.",
+    "correct_non_execution": "Do not produce a report when the source is unavailable or the requested period cannot be determined."
+  },
+  "trigger": {
+    "type": "schedule",
+    "description": "Run once per day.",
+    "cadence_or_condition": "daily"
+  },
+  "source_of_truth": {
+    "description": "Authoritative source dataset",
+    "location": "data/source.json",
+    "owner": "example-owner",
+    "derived_artifacts_rebuildable": true
+  },
+  "work_item": {
+    "definition": "One reporting period",
+    "identity_key": "report-date",
+    "selection_rule": "Select the current completed reporting period.",
+    "maximum_per_execution": 1
+  },
+  "risk": {
+    "class": "R0",
+    "rationale": "The automation is read-only with respect to external systems.",
+    "worst_credible_effect": "Incorrect local report output."
+  },
+  "authority": {
+    "executor": "local process or scheduler",
+    "production_authority": "read-only execution only",
+    "concurrency_model": "none_read_only",
+    "revocation_mechanism": "disable the invoking process or schedule"
+  },
+  "policy": {
+    "source": "automation.contract.json",
+    "description": "Produce at most one report for a completed period.",
+    "change_authority": "example-owner"
+  },
+  "side_effects": [],
+  "state": {
+    "ledger": "local report metadata",
+    "durable": false,
+    "states": ["eligible", "generated", "failed"],
+    "write_safety": "Only local generated report files may be written.",
+    "intent_recorded_before_side_effect": false
+  },
+  "ambiguity": {
+    "possible": false,
+    "detection": "No external mutation exists.",
+    "on_unknown": "Stop and surface the inability to establish source truth.",
+    "reconciliation": "Re-read the authoritative source.",
+    "automatic_retry_allowed_when_unknown": false
+  },
+  "retry": {
+    "strategy": "bounded retry for transient read failures",
+    "maximum_attempts": 2,
+    "backoff": "fixed or exponential",
+    "retryable_conditions": ["temporary source unavailability"],
+    "non_retryable_conditions": ["invalid source data", "unknown reporting period"]
+  },
+  "backlog": {
+    "stale_definition": "A reporting period is stale after the next period begins.",
+    "automatic_catchup_allowed": false,
+    "permitted_dispositions": ["retry", "skip", "escalate"]
+  },
+  "verification": {
+    "preflight": "Verify source readability and period selection.",
+    "dry_run": "Render report to stdout or a temporary file.",
+    "postcondition": "Confirm the output identifies the correct reporting period.",
+    "runtime_health": "Confirm source remains readable and no unexpected mutation path exists.",
+    "evidence": "Store command result and report metadata."
+  },
+  "recovery": {
+    "procedure": "Repair source/configuration, rerun preflight, then regenerate the report.",
+    "fail_closed_conditions": ["source unavailable", "source invalid", "period ambiguous"],
+    "resume_gate": "Preflight passes with an unambiguous reporting period."
+  },
+  "owner_reserved_actions": [],
+  "observability": {
+    "logs": "local process output",
+    "metrics": "optional",
+    "alerts": "optional"
+  },
+  "lesson_loop": {
+    "incident_record_location": "docs/incidents",
+    "standard_promotion_process": "Use TSAL A10/A11."
+  }
+}

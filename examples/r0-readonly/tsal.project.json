@@ -1,0 +1,38 @@
+{
+  "schema_version": "0.2",
+  "tsal_version": "0.2.0",
+  "project": {
+    "id": "example.r0-readonly",
+    "name": "R0 Read-Only Example",
+    "owner": "example-owner",
+    "kind": "automation",
+    "repository": null,
+    "description": "Minimal TSAL-aware project with one read-only automation."
+  },
+  "automations": [
+    {
+      "id": "example.daily-report",
+      "contract": "automation.contract.json",
+      "enabled": true,
+      "risk": "R0"
+    }
+  ],
+  "artifacts": {
+    "evidence_directory": "evidence",
+    "incidents_directory": "docs/incidents",
+    "runbook": "docs/RUNBOOK.md",
+    "architecture": "docs/ARCHITECTURE.md"
+  },
+  "integration": {
+    "adapters": [],
+    "control_plane": {
+      "enabled": false,
+      "type": null,
+      "endpoint": null,
+      "project_key": null
+    }
+  },
+  "metadata": {
+    "example": true
+  }
+}
