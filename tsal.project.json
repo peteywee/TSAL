@@ -1,0 +1,34 @@
+{
+  "schema_version": "0.2",
+  "tsal_version": "0.2.0",
+  "project": {
+    "id": "topshelf.tsal",
+    "name": "TSAL",
+    "owner": "peteywee",
+    "kind": "platform",
+    "repository": "https://github.com/peteywee/TSAL",
+    "description": "Canonical Top Shelf Automation Lifecycle standard, schemas, interfaces, and local-first conformance tooling."
+  },
+  "automations": [],
+  "artifacts": {
+    "evidence_directory": "evidence",
+    "incidents_directory": "docs/incidents",
+    "runbook": "templates/RUNBOOK.md",
+    "architecture": "docs/ARCHITECTURE.md"
+  },
+  "integration": {
+    "adapters": [],
+    "control_plane": {
+      "enabled": false,
+      "type": null,
+      "endpoint": null,
+      "project_key": null
+    }
+  },
+  "metadata": {
+    "standard_role": "canonical",
+    "local_first": true,
+    "ai_required": false,
+    "backend_required": false
+  }
+}
