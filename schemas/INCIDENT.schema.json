@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/peteywee/TSAL/schemas/INCIDENT.schema.json",
+  "title": "TSAL Incident Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "incident_id", "project_id", "detected_at", "severity", "summary", "expected", "actual", "containment", "recovery", "lesson"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "0.2"},
+    "incident_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "automation_id": {"type": ["string", "null"]},
+    "detected_at": {"type": "string", "format": "date-time"},
+    "resolved_at": {"type": ["string", "null"], "format": "date-time"},
+    "severity": {"type": "string", "enum": ["SEV0", "SEV1", "SEV2", "SEV3", "SEV4"]},
+    "summary": {"type": "string", "minLength": 1},
+    "expected": {"type": "string", "minLength": 1},
+    "actual": {"type": "string", "minLength": 1},
+    "ambiguity_present": {"type": "boolean", "default": false},
+    "state_before": {"type": ["string", "null"]},
+    "state_after": {"type": ["string", "null"]},
+    "containment": {"type": "string", "minLength": 1},
+    "root_cause": {"type": ["string", "null"]},
+    "recovery": {"type": "string", "minLength": 1},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "lesson": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statement", "existing_control_result", "promotion_candidate"],
+      "properties": {
+        "statement": {"type": "string", "minLength": 1},
+        "existing_control_result": {"type": "string", "enum": ["worked", "failed", "missing", "not_applicable"]},
+        "new_invariant": {"type": ["string", "null"]},
+        "negative_test": {"type": ["string", "null"]},
+        "promotion_candidate": {"type": "string", "enum": ["none", "project_rule", "tsal_control", "tsal_core"]},
+        "promotion_reason": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
