@@ -9,7 +9,7 @@ A contract can prove that a project has specified an authority boundary, retry p
 - `PROVEN` — the requirement is supported by qualifying evidence.
 - `PARTIAL` — part of the requirement is supported, but a stronger model or evidence layer is still missing.
 - `UNPROVEN` — no current qualifying evidence proves the requirement.
-- `BLOCKING` — structural contradiction, unsafe contract semantics, malformed evidence, or current qualifying evidence reports failure.
+- `BLOCKING` — structural contradiction, unsafe contract semantics, malformed TSAL evidence, or current qualifying evidence reports failure.
 - `NOT_APPLICABLE` — the requirement does not apply to the automation/risk class.
 
 Overall project conformance is:
@@ -55,6 +55,16 @@ For automation `<id>` the current behavioral claims are:
 - `<id>.runtime.safe` for R2/R3
 
 Structural/specification checks are derived directly from the manifest and automation contract and do not require separate evidence records.
+
+## Evidence discovery
+
+The manifest's `artifacts.evidence_directory` may contain both TSAL claim-level evidence records and project-native evidence formats.
+
+`tsal audit` MUST NOT assume that every JSON file in that directory is a TSAL evidence record. A JSON document is interpreted as TSAL evidence when it identifies itself through a supported TSAL evidence `schema_version` or TSAL evidence identity fields such as `evidence_id`, `claim_id`, or `evidence_class`.
+
+Project-native JSON that does not identify itself as TSAL evidence is ignored by the TSAL evidence parser and remains available to project-specific tooling. Once a document identifies itself as TSAL evidence, malformed or unsupported TSAL evidence MUST fail closed rather than being silently ignored.
+
+This permits existing evidence artifacts such as parity matrices, provider snapshots, test inventories, and project-specific diagnostics to coexist with machine-readable TSAL claim records without changing their original semantics.
 
 ## Evidence selection
 
