@@ -47,7 +47,7 @@ function loadEvidence(project) {
   const errors = [];
   const warnings = [];
   const directory = project.manifest?.artifacts?.evidence_directory;
-  if (!directory) return { records, errors, warnings };
+  if (typeof directory !== 'string' || directory.length === 0) return { records, errors, warnings };
 
   const evidenceRoot = resolveDeclaredPath(project.root, directory);
   for (const file of listJsonFiles(evidenceRoot)) {
@@ -71,19 +71,31 @@ function loadEvidence(project) {
       continue;
     }
 
-    for (const key of ['evidence_id', 'project_id', 'produced_at', 'claim_id', 'claim', 'result', 'evidence_class', 'provenance']) {
+    const recordErrors = [];
+    for (const key of ['evidence_id', 'project_id', 'produced_at', 'claim_id', 'claim', 'result', 'evidence_class', 'evidence_type', 'provenance']) {
       if (record?.[key] === undefined || record?.[key] === null || record?.[key] === '') {
-        errors.push(`evidence ${relative} missing required field ${key}`);
+        recordErrors.push(`evidence ${relative} missing required field ${key}`);
       }
     }
     if (record?.project_id && record.project_id !== project.manifest.project.id) {
-      errors.push(`evidence ${relative} project_id ${record.project_id} does not match ${project.manifest.project.id}`);
+      recordErrors.push(`evidence ${relative} project_id ${record.project_id} does not match ${project.manifest.project.id}`);
     }
     if (record?.evidence_class && !VALID_EVIDENCE_CLASSES.has(record.evidence_class)) {
-      errors.push(`evidence ${relative} has invalid evidence_class ${record.evidence_class}`);
+      recordErrors.push(`evidence ${relative} has invalid evidence_class ${record.evidence_class}`);
     }
     if (record?.result && !['pass', 'fail', 'unknown', 'informational'].includes(record.result)) {
-      errors.push(`evidence ${relative} has invalid result ${record.result}`);
+      recordErrors.push(`evidence ${relative} has invalid result ${record.result}`);
+    }
+    if (record?.produced_at && !Number.isFinite(Date.parse(record.produced_at))) {
+      recordErrors.push(`evidence ${relative} has invalid produced_at ${record.produced_at}`);
+    }
+    if (record?.valid_until && !Number.isFinite(Date.parse(record.valid_until))) {
+      recordErrors.push(`evidence ${relative} has invalid valid_until ${record.valid_until}`);
+    }
+
+    if (recordErrors.length) {
+      errors.push(...recordErrors);
+      continue;
     }
 
     records.push({ ...record, _file: relative, _legacy: false });
@@ -187,17 +199,9 @@ function contractChecks(entry, evidence) {
   const sideEffects = Array.isArray(contract?.side_effects) ? contract.side_effects : [];
   const ambiguityPossible = sideEffects.some((effect) => effect?.ambiguity_possible === true);
   if (['R2', 'R3'].includes(risk) && sideEffects.length === 0) {
-    checks.push(check(
-      `${id}.side_effects.declared`,
-      'R2/R3 automations declare at least one external side effect.',
-      'blocking'
-    ));
+    checks.push(check(`${id}.side_effects.declared`, 'R2/R3 automations declare at least one external side effect.', 'blocking'));
   } else {
-    checks.push(check(
-      `${id}.side_effects.declared`,
-      'Side effects are declared consistently with the risk class.',
-      'proven'
-    ));
+    checks.push(check(`${id}.side_effects.declared`, 'Side effects are declared consistently with the risk class.', 'proven'));
   }
 
   if (ambiguityPossible) {
@@ -215,11 +219,7 @@ function contractChecks(entry, evidence) {
       ambiguitySafe ? 'proven' : 'blocking'
     ));
   } else {
-    checks.push(check(
-      `${id}.ambiguity.specified`,
-      'Ambiguous side-effect handling is required only when ambiguity is possible.',
-      'not_applicable'
-    ));
+    checks.push(check(`${id}.ambiguity.specified`, 'Ambiguous side-effect handling is required only when ambiguity is possible.', 'not_applicable'));
   }
 
   if (contract?.schema_version === '0.2') {
@@ -244,65 +244,29 @@ function contractChecks(entry, evidence) {
   }
 
   if (['R1', 'R2', 'R3'].includes(risk)) {
-    checks.push(evidenceCheck(
-      evidence,
-      id,
-      'authority.enforced',
-      'Implementation/candidate evidence proves that execution authority is enforced.',
-      ['implementation', 'candidate']
-    ));
-    checks.push(evidenceCheck(
-      evidence,
-      id,
-      'retry.bounded',
-      'Implementation/candidate evidence proves retry behavior is bounded and policy-conformant.',
-      ['implementation', 'candidate']
-    ));
+    checks.push(evidenceCheck(evidence, id, 'authority.enforced', 'Implementation/candidate evidence proves that execution authority is enforced.', ['implementation', 'candidate']));
+    checks.push(evidenceCheck(evidence, id, 'retry.bounded', 'Implementation/candidate evidence proves retry behavior is bounded and policy-conformant.', ['implementation', 'candidate']));
   } else {
     checks.push(check(`${id}.authority.enforced`, 'Implementation authority evidence.', 'not_applicable'));
     checks.push(check(`${id}.retry.bounded`, 'Implementation retry evidence.', 'not_applicable'));
   }
 
   if (ambiguityPossible) {
-    checks.push(evidenceCheck(
-      evidence,
-      id,
-      'ambiguity.fail_closed',
-      'Implementation/candidate evidence proves ambiguous external outcomes fail closed.',
-      ['implementation', 'candidate']
-    ));
+    checks.push(evidenceCheck(evidence, id, 'ambiguity.fail_closed', 'Implementation/candidate evidence proves ambiguous external outcomes fail closed.', ['implementation', 'candidate']));
   } else {
     checks.push(check(`${id}.ambiguity.fail_closed`, 'Ambiguity implementation evidence.', 'not_applicable'));
   }
 
   if (['R2', 'R3'].includes(risk)) {
-    checks.push(evidenceCheck(
-      evidence,
-      id,
-      'recovery.verified',
-      'Candidate or reconciliation evidence proves the documented recovery path works.',
-      ['candidate', 'reconciliation']
-    ));
-    checks.push(evidenceCheck(
-      evidence,
-      id,
-      'runtime.safe',
-      'Current runtime evidence supports safe operation.',
-      ['runtime']
-    ));
+    checks.push(evidenceCheck(evidence, id, 'recovery.verified', 'Candidate or reconciliation evidence proves the documented recovery path works.', ['candidate', 'reconciliation']));
+    checks.push(evidenceCheck(evidence, id, 'runtime.safe', 'Current runtime evidence supports safe operation.', ['runtime']));
   } else {
     checks.push(check(`${id}.recovery.verified`, 'Recovery evidence.', 'not_applicable'));
     checks.push(check(`${id}.runtime.safe`, 'Runtime safety evidence.', 'not_applicable'));
   }
 
   if (risk === 'R3') {
-    checks.push(evidenceCheck(
-      evidence,
-      id,
-      'deployment.authority',
-      'Deployment evidence proves the intended production authority configuration.',
-      ['deployment']
-    ));
+    checks.push(evidenceCheck(evidence, id, 'deployment.authority', 'Deployment evidence proves the intended production authority configuration.', ['deployment']));
   } else {
     checks.push(check(`${id}.deployment.authority`, 'Production deployment authority evidence.', 'not_applicable'));
   }
@@ -311,13 +275,7 @@ function contractChecks(entry, evidence) {
 }
 
 function summarize(checks) {
-  const counts = {
-    proven: 0,
-    partial: 0,
-    unproven: 0,
-    blocking: 0,
-    not_applicable: 0
-  };
+  const counts = { proven: 0, partial: 0, unproven: 0, blocking: 0, not_applicable: 0 };
   for (const item of checks) counts[item.result] += 1;
 
   let result;
@@ -345,7 +303,9 @@ export function auditProject(target) {
     checks.push(check('project.structure', 'Project manifest, declared artifacts, and automation contracts are structurally coherent.', 'proven'));
   }
 
-  const evidence = project.manifest ? loadEvidence(project) : { records: [], errors: [], warnings: [] };
+  const evidence = project.manifest && project.errors.length === 0
+    ? loadEvidence(project)
+    : { records: [], errors: [], warnings: [] };
   warnings.push(...evidence.warnings);
   for (const error of evidence.errors) {
     checks.push(check('evidence.integrity', 'Machine-readable evidence records are parseable and structurally usable.', 'blocking', { notes: error }));
@@ -353,9 +313,7 @@ export function auditProject(target) {
   }
 
   if (project.errors.length === 0) {
-    for (const entry of project.contracts) {
-      checks.push(...contractChecks(entry, evidence.records));
-    }
+    for (const entry of project.contracts) checks.push(...contractChecks(entry, evidence.records));
   }
 
   const { result, counts } = summarize(checks);
