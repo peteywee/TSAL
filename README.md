@@ -6,7 +6,7 @@ TSAL is a local-first, technology-agnostic automation engineering standard with 
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-Current version: **0.3.2 — external state preservation**
+Current version: **0.3.3 — control-plane/workload boundary**
 
 ## Architecture
 
@@ -33,7 +33,22 @@ TSAL is deliberately split into a stable trunk and replaceable branches:
 
 The core MUST NOT depend on TOS, AI, GitHub, Cloudflare, Supabase, a scheduler, or a language runtime.
 
-Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), [`docs/INTEGRATION-MODEL.md`](./docs/INTEGRATION-MODEL.md), [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md), and [`docs/EXTERNAL-STATE-PRESERVATION.md`](./docs/EXTERNAL-STATE-PRESERVATION.md).
+### Constitutional responsibility boundary
+
+```text
+TSAL
+  defines rules, contracts, evidence semantics, conformance, and compatibility expectations
+
+TOS / control plane
+  detects change, evaluates policy, decides, executes bounded operations, verifies, and escalates
+
+Workload
+  performs domain behavior and exposes truthful facts, evidence, and bounded actions
+```
+
+TSAL is not runtime middleware between TOS and a workload. Workloads must remain independently safe if TSAL or TOS is unavailable. A new TSAL release may trigger compatibility assessment, but it must not silently mutate a workload; an adoption that changes committed workload content is a new workload candidate subject to that project's own version, tests, evidence, and release policy.
+
+Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), [`docs/INTEGRATION-MODEL.md`](./docs/INTEGRATION-MODEL.md), [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md), [`docs/EXTERNAL-STATE-PRESERVATION.md`](./docs/EXTERNAL-STATE-PRESERVATION.md), and [`docs/VERSIONING.md`](./docs/VERSIONING.md).
 
 ## Stable project socket
 
@@ -189,12 +204,14 @@ Intended dependency direction:
 
 ```text
 TOS/control plane -> TSAL interfaces -> project facts
+TOS/control plane -> declared project actions
 ```
 
 not:
 
 ```text
 TSAL core -> TOS implementation
+workload runtime -> TOS/TSAL service as a prerequisite for local safety
 ```
 
 ## Repository structure
@@ -212,6 +229,7 @@ TSAL/
 │   ├── ARCHITECTURE.md
 │   ├── CONFORMANCE-MODEL.md
 │   ├── EXTERNAL-STATE-PRESERVATION.md
+│   ├── INTEGRATION-MODEL.md
 │   ├── RETRY-MODEL.md
 │   └── VERSIONING.md
 ├── evidence/
@@ -247,6 +265,10 @@ TSAL/
 18. **Destructive absence is a side effect.** Empty/null/default configuration that can delete, revoke, replace, or reset external state is mutating authority, not neutral configuration.
 19. **Non-authoritative deploys preserve authority.** A deployment path without authority to change an external control plane MUST preserve that external authority state.
 20. **Deployment completion requires reconciliation.** Material R3 external authority must be independently observed after deployment before it is considered proven.
+21. **TSAL defines correctness; control planes operate.** TOS may observe, decide, repair, verify, and escalate, but those responsibilities do not move into TSAL core.
+22. **Workloads remain independently safe.** Loss of TSAL/TOS availability cannot expand workload authority or disable local fail-closed controls.
+23. **Detection is not adoption.** A newer TSAL release may be detected automatically, but it cannot silently mutate a workload.
+24. **Project releases remain immutable evidence.** If TSAL adoption changes committed workload content, it is a new workload candidate subject to that project's own version and release policy.
 
 ## Risk classes
 
@@ -261,12 +283,13 @@ TSAL/
 
 XQueue is the first reference workload, not a dependency. [`references/xqueue/LESSONS-LEARNED.md`](./references/xqueue/LESSONS-LEARNED.md) records which lessons were promoted and which implementation choices stayed project-specific.
 
-XQueue dogfooding drove 0.2.1, 0.3.0, 0.3.1, and 0.3.2:
+XQueue dogfooding drove 0.2.1, 0.3.0, 0.3.1, 0.3.2, and 0.3.3:
 
 - 0.2.1: declared-path validation, complete Git-trackable project sockets, and enforced release versioning.
 - 0.3.0: configuration-vs-runtime evidence separation, claim-level conformance, backward-compatible legacy audit, and separated retry semantics.
 - 0.3.1: project-native evidence JSON can coexist with TSAL claim records without false blocking.
 - 0.3.2: destructive-absence semantics, authority-preserving deployment, and authoritative post-deploy control-plane reconciliation.
+- 0.3.3: explicit TSAL/TOS/workload responsibility boundaries and independent standard-versus-workload version evolution.
 
 ## Versioning
 
