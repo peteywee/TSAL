@@ -48,7 +48,9 @@ function resolveDeclaredPath(root, value) {
 function validateManifestShape(manifest) {
   const errors = [];
   if (manifest?.schema_version !== '0.2') errors.push('schema_version must be 0.2');
-  if (typeof manifest?.tsal_version !== 'string' || !manifest.tsal_version.startsWith('0.2')) errors.push('tsal_version must target 0.2');
+  if (typeof manifest?.tsal_version !== 'string' || !/^0\.2(?:\.|$)/.test(manifest.tsal_version)) {
+    errors.push('tsal_version must target 0.2');
+  }
   for (const key of ['id', 'name', 'owner', 'kind']) {
     if (!manifest?.project?.[key]) errors.push(`project.${key} is required`);
   }
@@ -197,8 +199,6 @@ function init(target) {
     metadata: {}
   };
 
-  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' });
-
   writeIfMissing(path.join(root, 'evidence', 'README.md'), '# Evidence\n\nStore durable TSAL evidence records for this project here.\n');
   writeIfMissing(
     path.join(root, 'docs', 'incidents', 'README.md'),
@@ -206,6 +206,8 @@ function init(target) {
   );
   copyTemplateIfMissing('RUNBOOK.md', path.join(root, 'docs', 'RUNBOOK.md'));
   copyTemplateIfMissing('ARCHITECTURE.md', path.join(root, 'docs', 'ARCHITECTURE.md'));
+
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' });
 
   pass(`initialized ${manifestPath}`);
   console.log('Next: set project.owner, add automation contract(s), then run `tsal doctor <project>`');
