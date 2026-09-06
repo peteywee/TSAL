@@ -28,7 +28,7 @@ Evidence class answers **which layer of truth the evidence can establish**.
 | `specification` | What policy, contract, or design declares. |
 | `implementation` | What source code or deterministic implementation checks establish. |
 | `candidate` | What an exact immutable candidate passed before promotion. |
-| `deployment` | What configuration/artifact was actually deployed or granted authority. |
+| `deployment` | What configuration/artifact and external control-plane authority were actually deployed or granted. |
 | `runtime` | What the currently operating system is observed doing now. |
 | `reconciliation` | What remote/external truth was established after uncertainty. |
 | `attestation` | Human or external assertion where deterministic proof is unavailable. |
@@ -40,6 +40,10 @@ repository configuration != deployed configuration != current runtime truth
 ```
 
 A `candidate` test cannot prove current production authority. A `deployment` record cannot prove the service is still healthy. A contract cannot prove its implementation enforces the contract.
+
+For R3 systems where provider-managed control-plane state determines production authority, `deployment` evidence SHOULD come from the authoritative provider state after deployment rather than only from the local configuration or deploy command exit status. If the latest qualifying external observation reports an authority mismatch, conformance is `BLOCKING` until reconciled.
+
+See [`EXTERNAL-STATE-PRESERVATION.md`](./EXTERNAL-STATE-PRESERVATION.md) for provider replacement semantics and destructive-absence rules.
 
 ## Canonical claim IDs
 
@@ -55,6 +59,22 @@ For automation `<id>` the current behavioral claims are:
 - `<id>.runtime.safe` for R2/R3
 
 Structural/specification checks are derived directly from the manifest and automation contract and do not require separate evidence records.
+
+## External-state preservation and deployment authority
+
+`<id>.deployment.authority` is intended to prove the authority state that actually exists outside the repository.
+
+A qualifying R3 deployment record SHOULD establish, where technically available:
+
+- the exact target/environment identity;
+- the active deployment/candidate identity;
+- provider-managed scheduler, routing, policy, traffic, credential, or equivalent authority state material to the automation;
+- whether that observed state matches intended authority;
+- evidence freshness.
+
+A successful deployment command is not sufficient when the provider can replace external control-plane state as a side effect of deployment.
+
+An explicit empty/default configuration that can delete, revoke, reset, or replace external state MUST NOT be treated as evidence of preservation. Projects SHOULD mechanically test that non-authoritative deploy paths omit or otherwise preserve authority-changing surfaces.
 
 ## Evidence discovery
 
