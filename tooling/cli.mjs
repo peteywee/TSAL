@@ -3,8 +3,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { auditExitCode, auditProject, formatAudit } from './audit.mjs';
+import { loadProject, readJson } from './project-model.mjs';
 
-const [, , command = 'help', targetArg = '.'] = process.argv;
+const [command = 'help', ...rest] = process.argv.slice(2);
+const targetArg = rest.find((arg) => !arg.startsWith('--')) ?? '.';
+const jsonOutput = rest.includes('--json');
+const strictAudit = rest.includes('--strict');
 const toolingDir = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(toolingDir, '..');
 const TSAL_VERSION = fs.readFileSync(path.join(packageRoot, 'VERSION'), 'utf8').trim();
@@ -18,135 +23,22 @@ function pass(message) {
   console.log(`TSAL: PASS — ${message}`);
 }
 
-function readJson(file) {
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
-}
-
 function resolveTarget(target) {
   return path.resolve(process.cwd(), target);
 }
 
-function canonicalRelativePathError(value) {
-  if (typeof value !== 'string' || value.length === 0) return 'must be a non-empty relative path';
-  if (value !== value.trim()) return 'must not contain leading or trailing whitespace';
-  if (value.includes('\\')) return 'must use forward slashes';
-  if (path.posix.isAbsolute(value)) return 'must be relative';
-  if (value.endsWith('/')) return 'must not have a trailing slash';
-
-  const segments = value.split('/');
-  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
-    return 'must not contain empty, dot, or parent segments';
-  }
-  if (path.posix.normalize(value) !== value) return 'must be normalized';
-  return null;
-}
-
-function resolveDeclaredPath(root, value) {
-  return path.resolve(root, ...value.split('/'));
-}
-
-function validateManifestShape(manifest) {
-  const errors = [];
-  if (manifest?.schema_version !== '0.2') errors.push('schema_version must be 0.2');
-  if (typeof manifest?.tsal_version !== 'string' || !/^0\.2(?:\.|$)/.test(manifest.tsal_version)) {
-    errors.push('tsal_version must target 0.2');
-  }
-  for (const key of ['id', 'name', 'owner', 'kind']) {
-    if (!manifest?.project?.[key]) errors.push(`project.${key} is required`);
-  }
-  if (!Array.isArray(manifest?.automations)) errors.push('automations must be an array');
-  if (!Array.isArray(manifest?.integration?.adapters)) errors.push('integration.adapters must be an array');
-  if (typeof manifest?.integration?.control_plane?.enabled !== 'boolean') errors.push('integration.control_plane.enabled must be boolean');
-  return errors;
-}
-
-function validateDeclaredArtifacts(root, manifest, errors) {
-  const specs = [
-    ['evidence_directory', 'directory'],
-    ['incidents_directory', 'directory'],
-    ['runbook', 'file'],
-    ['architecture', 'file']
-  ];
-
-  for (const [key, expectedType] of specs) {
-    const value = manifest?.artifacts?.[key];
-    if (value === undefined) continue;
-
-    const pathError = canonicalRelativePathError(value);
-    if (pathError) {
-      errors.push(`artifacts.${key} ${pathError}: ${String(value)}`);
-      continue;
-    }
-
-    const artifactPath = resolveDeclaredPath(root, value);
-    if (!fs.existsSync(artifactPath)) {
-      errors.push(`declared artifact not found: artifacts.${key} -> ${value}`);
-      continue;
-    }
-
-    const stat = fs.statSync(artifactPath);
-    if (expectedType === 'directory' && !stat.isDirectory()) {
-      errors.push(`declared artifact must be a directory: artifacts.${key} -> ${value}`);
-    }
-    if (expectedType === 'file' && !stat.isFile()) {
-      errors.push(`declared artifact must be a file: artifacts.${key} -> ${value}`);
-    }
-  }
-}
-
 function doctor(target) {
-  const root = resolveTarget(target);
-  const manifestPath = path.join(root, 'tsal.project.json');
-  if (!fs.existsSync(manifestPath)) return fail(`missing ${manifestPath}`);
-
-  let manifest;
-  try {
-    manifest = readJson(manifestPath);
-  } catch (error) {
-    return fail(`cannot parse tsal.project.json: ${error.message}`);
+  const project = loadProject(resolveTarget(target));
+  if (project.errors.length) {
+    for (const error of project.errors) console.error(`- ${error}`);
+    return fail(`${project.errors.length} blocking project-model finding(s)`);
   }
 
-  const errors = validateManifestShape(manifest);
-  validateDeclaredArtifacts(root, manifest, errors);
-
-  if (Array.isArray(manifest.automations)) {
-    for (const automation of manifest.automations) {
-      if (!automation?.contract) {
-        errors.push(`automation ${automation?.id ?? '<unknown>'} has no contract path`);
-        continue;
-      }
-
-      const pathError = canonicalRelativePathError(automation.contract);
-      if (pathError) {
-        errors.push(`automation ${automation?.id ?? '<unknown>'} contract path ${pathError}: ${automation.contract}`);
-        continue;
-      }
-
-      const contractPath = resolveDeclaredPath(root, automation.contract);
-      if (!fs.existsSync(contractPath)) {
-        errors.push(`automation ${automation.id} contract not found: ${automation.contract}`);
-        continue;
-      }
-      if (!fs.statSync(contractPath).isFile()) {
-        errors.push(`automation ${automation.id} contract is not a file: ${automation.contract}`);
-        continue;
-      }
-      try {
-        readJson(contractPath);
-      } catch (error) {
-        errors.push(`automation ${automation.id} contract is invalid JSON: ${error.message}`);
-      }
-    }
-  }
-
-  if (errors.length) {
-    for (const error of errors) console.error(`- ${error}`);
-    return fail(`${errors.length} blocking project-manifest finding(s)`);
-  }
-
+  const { manifest } = project;
   pass(`${manifest.project.id} is structurally TSAL-aware`);
   console.log(`Project: ${manifest.project.name}`);
   console.log(`TSAL: ${manifest.tsal_version}`);
+  console.log(`Manifest schema: ${manifest.schema_version}`);
   console.log(`Automations: ${manifest.automations.length}`);
   console.log(`Control plane: ${manifest.integration.control_plane.enabled ? 'enabled' : 'disabled'}`);
 }
@@ -170,7 +62,7 @@ function init(target) {
 
   const id = path.basename(root).toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
   const manifest = {
-    schema_version: '0.2',
+    schema_version: '0.3',
     tsal_version: TSAL_VERSION,
     project: {
       id,
@@ -210,7 +102,7 @@ function init(target) {
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' });
 
   pass(`initialized ${manifestPath}`);
-  console.log('Next: set project.owner, add automation contract(s), then run `tsal doctor <project>`');
+  console.log('Next: set project.owner, add automation contract(s), add evidence as claims are proven, then run `tsal audit <project>`.');
 }
 
 function inspect(target) {
@@ -220,6 +112,7 @@ function inspect(target) {
   const manifest = readJson(manifestPath);
   console.log(JSON.stringify({
     project: manifest.project,
+    manifest_schema: manifest.schema_version,
     tsal_version: manifest.tsal_version,
     automations: manifest.automations,
     adapters: manifest.integration?.adapters ?? [],
@@ -227,14 +120,21 @@ function inspect(target) {
   }, null, 2));
 }
 
+function audit(target) {
+  const report = auditProject(resolveTarget(target));
+  console.log(jsonOutput ? JSON.stringify(report, null, 2) : formatAudit(report));
+  process.exitCode = auditExitCode(report, strictAudit);
+}
+
 function help() {
-  console.log(`TSAL local tooling\n\nUsage:\n  tsal init <project-directory>\n  tsal doctor <project-directory>\n  tsal inspect <project-directory>\n\nThe CLI is intentionally local-first. It does not require AI, a backend, or TOS.`);
+  console.log(`TSAL local tooling\n\nUsage:\n  tsal init <project-directory>\n  tsal doctor <project-directory>\n  tsal inspect <project-directory>\n  tsal audit <project-directory> [--json] [--strict]\n\nAudit exit behavior:\n  default: nonzero only for BLOCKING conformance\n  --strict: nonzero unless conformance is PROVEN\n\nThe CLI is local-first. It does not require AI, a backend, or TOS.`);
 }
 
 switch (command) {
   case 'init': init(targetArg); break;
   case 'doctor': doctor(targetArg); break;
   case 'inspect': inspect(targetArg); break;
+  case 'audit': audit(targetArg); break;
   case 'help':
   case '--help':
   case '-h': help(); break;
