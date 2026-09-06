@@ -6,8 +6,8 @@
   "additionalProperties": false,
   "required": ["schema_version", "tsal_version", "project", "automations", "integration"],
   "properties": {
-    "schema_version": {"type": "string", "const": "0.3"},
-    "tsal_version": {"type": "string", "pattern": "^0\\.3(?:\\..*)?$"},
+    "schema_version": {"type": "string", "const": "0.2"},
+    "tsal_version": {"type": "string", "pattern": "^0\\.2(?:\\..*)?$"},
     "project": {
       "type": "object",
       "additionalProperties": false,
@@ -76,14 +76,6 @@
             "project_key": {"type": ["string", "null"]}
           }
         }
-      }
-    },
-    "conformance": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "mode": {"type": "string", "enum": ["advisory", "strict"]},
-        "minimum_result": {"type": "string", "enum": ["proven", "partial", "unproven"]}
       }
     },
     "metadata": {"type": "object", "additionalProperties": true}

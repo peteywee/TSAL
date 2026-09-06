@@ -1,6 +1,6 @@
 {
-  "schema_version": "0.2",
-  "tsal_version": "0.2.1",
+  "schema_version": "0.3",
+  "tsal_version": "0.3.0",
   "project": {
     "id": "example.r0-readonly",
     "name": "R0 Read-Only Example",
@@ -31,6 +31,10 @@
       "endpoint": null,
       "project_key": null
     }
+  },
+  "conformance": {
+    "mode": "strict",
+    "minimum_result": "proven"
   },
   "metadata": {
     "example": true

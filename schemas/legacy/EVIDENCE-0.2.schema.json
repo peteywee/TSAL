@@ -4,20 +4,9 @@
   "title": "TSAL Evidence Record",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "evidence_id",
-    "project_id",
-    "produced_at",
-    "claim_id",
-    "claim",
-    "result",
-    "evidence_class",
-    "evidence_type",
-    "provenance"
-  ],
+  "required": ["schema_version", "evidence_id", "project_id", "produced_at", "claim", "result", "provenance"],
   "properties": {
-    "schema_version": {"type": "string", "const": "0.3"},
+    "schema_version": {"type": "string", "const": "0.2"},
     "evidence_id": {"type": "string", "minLength": 1},
     "project_id": {"type": "string", "minLength": 1},
     "automation_id": {"type": ["string", "null"]},
@@ -32,18 +21,9 @@
       }
     },
     "produced_at": {"type": "string", "format": "date-time"},
-    "valid_until": {"type": ["string", "null"], "format": "date-time"},
-    "claim_id": {"type": "string", "minLength": 1},
     "claim": {"type": "string", "minLength": 1},
     "result": {"type": "string", "enum": ["pass", "fail", "unknown", "informational"]},
-    "evidence_class": {
-      "type": "string",
-      "enum": ["specification", "implementation", "candidate", "deployment", "runtime", "reconciliation", "attestation"]
-    },
-    "evidence_type": {
-      "type": "string",
-      "enum": ["test", "preflight", "runtime_observation", "remote_observation", "manual_attestation", "conformance", "reconciliation", "configuration", "document", "other"]
-    },
+    "evidence_type": {"type": "string", "enum": ["test", "preflight", "runtime", "remote_observation", "manual_attestation", "conformance", "reconciliation", "other"]},
     "details": {"type": "object", "additionalProperties": true},
     "provenance": {
       "type": "object",

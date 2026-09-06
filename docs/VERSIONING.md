@@ -41,17 +41,20 @@ Use the smallest semantic version increase that truthfully describes the compati
 
 TSAL release version and artifact schema versions are independent.
 
-A TSAL patch may improve tooling without changing a schema. A future schema change MUST update that schema's own version/compatibility declaration when its data contract changes.
+A TSAL patch may improve tooling without changing a schema. A schema data-contract change MUST update that schema's own version/compatibility declaration.
 
-Example:
+Current 0.3.0 release:
 
 ```text
-TSAL release                 0.2.1
-Project manifest schema      0.2
-Automation contract schema   0.1
+TSAL release                 0.3.0
+Project manifest schema      0.3
+Automation contract schema   0.2
+Evidence schema              0.3
+Conformance report schema    0.3
+Incident schema              0.2
 ```
 
-This is valid when the 0.2.1 release changes implementation or validation behavior without changing those schema structures.
+Legacy schemas retained by 0.3.0 remain under `schemas/legacy/`. Compatibility support does not allow an older schema to prove requirements that did not exist in that version.
 
 ## Candidate rule
 
