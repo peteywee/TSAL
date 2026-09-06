@@ -1,12 +1,43 @@
 # TSAL Architecture
 
-Status: foundation v0.2
+Status: foundation v0.3.3
 
 TSAL is structured as a layered automation engineering system. The standard remains technology-agnostic; executable tooling and integrations are replaceable implementations around that standard.
 
 ## Architectural objective
 
 TSAL MUST be usable locally with no backend, no AI service, and no control plane. It MUST also expose stable machine-readable boundaries so projects, CI systems, AI assistants, and a future operating system such as TOS can consume the same facts without rewriting the standard.
+
+## Constitutional boundary
+
+TSAL defines **what correct, bounded, evidenced automation means**. A control plane such as TOS decides **what changed, what action is allowed, when to execute it, whether repair is safe, and when owner escalation is required**. A workload such as XQueue or Teach performs its own bounded domain work and remains independently safe to operate.
+
+The intended relationship is:
+
+```text
+OWNER / ORGANIZATION POLICY
+            │
+            ▼
+      CONTROL PLANE (TOS)
+   observe → decide → execute
+          → verify → escalate
+        │                │
+        │ consumes       │ invokes bounded
+        ▼                ▼
+   TSAL interfaces     WORKLOADS
+ rules/contracts/proof  XQueue / Teach / future
+        ▲                │
+        └──── facts/evidence/actions ────┘
+```
+
+The following are architecture invariants:
+
+1. **TSAL is not runtime middleware.** A workload MUST NOT require a live TSAL service or TOS service in order to execute its already-approved local/runtime safety controls.
+2. **TOS is not part of TSAL core.** TOS consumes TSAL through neutral interfaces and MAY be replaced without changing TSAL core guarantees.
+3. **Workloads remain independently safe.** Loss of TOS or TSAL availability MUST NOT expand a workload's authority or disable its fail-closed local controls.
+4. **Control-plane autonomy is policy-bounded.** TOS MAY automate observation, diagnosis, repair, verification, and escalation only within authority explicitly represented by contracts/policy.
+5. **A standard release does not silently mutate a workload.** A new TSAL release MAY trigger compatibility assessment, but adoption by a workload is an explicit candidate change subject to that workload's own versioning, tests, evidence, and release policy.
+6. **Reusable rules move upward; domain behavior stays downward.** Cross-project governance belongs in TSAL/TOS. Project-specific publication, application, database, or domain behavior remains in the workload.
 
 ## Planes
 
@@ -54,7 +85,7 @@ Contains:
 - authority and recovery expectations;
 - conformance definitions.
 
-The core MUST NOT depend on a vendor, runtime, scheduler, database, AI model, or control plane.
+The core MUST NOT depend on a vendor, runtime, scheduler, database, AI model, workload implementation, or control plane.
 
 ### 2. Conformance Plane
 
@@ -94,9 +125,11 @@ Adapters MAY connect GitHub, CI, cloud providers, databases, schedulers, observa
 
 ### 7. Optional Control Plane
 
-A control plane can aggregate many TSAL-aware projects, but it is not required for TSAL conformance.
+A control plane can aggregate many TSAL-aware projects, but it is not required for TSAL conformance or workload runtime safety.
 
-A future TOS integration belongs here. TOS can consume manifests, conformance reports, evidence, and incidents while remaining independent from TSAL core.
+A future TOS integration belongs here. TOS can consume manifests, conformance reports, evidence, incidents, declared repair primitives, and compatibility information while remaining independent from TSAL core.
+
+TOS MAY automate lifecycle operations around a workload, but it MUST NOT become an undeclared authority source. If a workload cannot prove a requested action is within its contract and TOS policy, the action must fail closed or escalate.
 
 ## Dependency direction
 
@@ -117,9 +150,10 @@ TSAL core -> GitHub
 TSAL core -> AI provider
 TSAL core -> Cloudflare
 TSAL core -> project implementation
+workload runtime -> live TOS/TSAL service as a prerequisite for local safety
 ```
 
-This prevents the standard from becoming captive to one operating system or vendor.
+This prevents the standard from becoming captive to one operating system or vendor and prevents workloads from becoming unsafe when the control plane is unavailable.
 
 ## Canonical project socket
 
@@ -159,7 +193,25 @@ TSAL distinguishes:
 
 One component MAY hold more than one role, but the roles MUST remain conceptually explicit. R3 systems SHOULD separate execution from independent verification where practical.
 
-## Extension rule
+## Evolution and ownership rule
+
+Use this decision boundary when deciding where a change belongs:
+
+```text
+Is the current workload broken?
+  ├─ yes → repair the workload
+  └─ no
+      Is this a new domain capability?
+        ├─ yes → workload change
+        └─ no
+            Is this a reusable automation/governance rule?
+              ├─ yes → TSAL
+              └─ no → leave the workload alone
+
+Does the reusable rule require autonomous cross-project action?
+  ├─ yes → TOS consumes/enforces it through TSAL interfaces
+  └─ no → TSAL rule/tooling only
+```
 
 New capabilities branch from stable interfaces rather than modifying the core contract for every integration.
 
