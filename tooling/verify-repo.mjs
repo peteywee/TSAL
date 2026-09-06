@@ -13,6 +13,7 @@ const required = [
   'docs/ARCHITECTURE.md',
   'docs/INTEGRATION-MODEL.md',
   'docs/CONFORMANCE-MODEL.md',
+  'docs/EXTERNAL-STATE-PRESERVATION.md',
   'docs/RETRY-MODEL.md',
   'docs/VERSIONING.md',
   'docs/incidents/README.md',
