@@ -1,6 +1,6 @@
 # TSAL Failure Test Matrix
 
-Version: **0.1**
+Version: **0.2**
 
 This document defines a reusable adversarial test catalog for automation systems.
 
@@ -30,6 +30,7 @@ A failure test should normally prove one or more of these behaviors:
 - **ROLL BACK / COMPENSATE** — a known reversible mutation is safely undone.
 - **ESCALATE** — an owner-reserved decision is required.
 - **DEGRADE READ-ONLY** — observation may continue while mutation authority is withheld.
+- **PRESERVE** — a deployment path without authority over an external state class leaves that state unchanged.
 
 ---
 
@@ -87,6 +88,8 @@ A failure test should normally prove one or more of these behaviors:
 | F48 | A previously completed item reappears in source | Duplicate historical work | Ledger/idempotency identity prevents unintended re-execution | R1–R3 |
 | F49 | Partial batch succeeds before later item fails | Mixed outcome | Per-item state remains truthful; successful items are not repeated blindly | Batch R1–R3 |
 | F50 | External side effect succeeds but postcondition differs from expectation | False positive | Postcondition verification detects semantic failure and invokes recovery/escalation | R2/R3 |
+| F51 | Ordinary deployment contains an empty/null/default authority field that provider semantics interpret as replacement/deletion | Destructive absence / silent authority loss | Non-authoritative deploy path MUST preserve the external authority state; destructive empty/default declarations are rejected | R2/R3 with provider-managed control plane |
+| F52 | Deploy command succeeds but authoritative provider state differs from intended authority | False deployment success / external drift | Post-deploy provider read detects mismatch and conformance becomes BLOCKING until reconciled | R3 deployment authority |
 
 ---
 
@@ -121,6 +124,8 @@ Scheduled systems SHOULD additionally prove:
 - stale invocation outside the grace window behaves as defined;
 - missed periods do not cause uncontrolled catch-up;
 - exactly one uncoordinated scheduler authority is active;
+- ordinary deployment cannot silently delete or replace scheduler authority;
+- authoritative scheduler state is reconciled after an authority-changing deployment;
 - timezone and DST cases are deterministic.
 
 ---

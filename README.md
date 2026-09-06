@@ -6,7 +6,7 @@ TSAL is a local-first, technology-agnostic automation engineering standard with 
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-Current version: **0.3.1 — evidence discovery compatibility**
+Current version: **0.3.2 — external state preservation**
 
 ## Architecture
 
@@ -33,7 +33,7 @@ TSAL is deliberately split into a stable trunk and replaceable branches:
 
 The core MUST NOT depend on TOS, AI, GitHub, Cloudflare, Supabase, a scheduler, or a language runtime.
 
-Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), [`docs/INTEGRATION-MODEL.md`](./docs/INTEGRATION-MODEL.md), and [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md).
+Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), [`docs/INTEGRATION-MODEL.md`](./docs/INTEGRATION-MODEL.md), [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md), and [`docs/EXTERNAL-STATE-PRESERVATION.md`](./docs/EXTERNAL-STATE-PRESERVATION.md).
 
 ## Stable project socket
 
@@ -119,7 +119,17 @@ Conformance statuses are:
 - `BLOCKING`
 - `NOT_APPLICABLE` for individual checks
 
-Repository configuration cannot prove deployed configuration, and deployed configuration cannot prove current runtime health. See [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md).
+Repository configuration cannot prove deployed configuration, and deployed configuration cannot prove current runtime health. For R3 control-plane authority, deployment evidence must come from authoritative external state rather than from configuration intent alone. See [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md).
+
+## External state preservation
+
+TSAL 0.3.2 adds a normative rule for provider replacement semantics:
+
+> **Preservation must be explicit when empty configuration can mutate external reality.**
+
+A non-authoritative deployment path must preserve external authority state. Empty, null, default, or omission-like values must not be assumed harmless when a provider may interpret them as delete, revoke, replace, or reset operations. Authority-changing configuration should use a separately controlled path, and material R3 deployment state must be reconciled against authoritative provider state after deployment.
+
+See [`docs/EXTERNAL-STATE-PRESERVATION.md`](./docs/EXTERNAL-STATE-PRESERVATION.md).
 
 ## Retry semantics
 
@@ -201,6 +211,7 @@ TSAL/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── CONFORMANCE-MODEL.md
+│   ├── EXTERNAL-STATE-PRESERVATION.md
 │   ├── RETRY-MODEL.md
 │   └── VERSIONING.md
 ├── evidence/
@@ -233,6 +244,9 @@ TSAL/
 15. **Canonical TSAL changes are versioned.** Repository changes beyond version metadata MUST increase the TSAL release version.
 16. **Evidence classes are not interchangeable.** A lower truth layer cannot silently prove a higher one.
 17. **Conformance is not authority.** Passing an audit does not itself grant production execution authority.
+18. **Destructive absence is a side effect.** Empty/null/default configuration that can delete, revoke, replace, or reset external state is mutating authority, not neutral configuration.
+19. **Non-authoritative deploys preserve authority.** A deployment path without authority to change an external control plane MUST preserve that external authority state.
+20. **Deployment completion requires reconciliation.** Material R3 external authority must be independently observed after deployment before it is considered proven.
 
 ## Risk classes
 
@@ -247,11 +261,12 @@ TSAL/
 
 XQueue is the first reference workload, not a dependency. [`references/xqueue/LESSONS-LEARNED.md`](./references/xqueue/LESSONS-LEARNED.md) records which lessons were promoted and which implementation choices stayed project-specific.
 
-XQueue dogfooding drove 0.2.1, 0.3.0, and 0.3.1:
+XQueue dogfooding drove 0.2.1, 0.3.0, 0.3.1, and 0.3.2:
 
 - 0.2.1: declared-path validation, complete Git-trackable project sockets, and enforced release versioning.
 - 0.3.0: configuration-vs-runtime evidence separation, claim-level conformance, backward-compatible legacy audit, and separated retry semantics.
 - 0.3.1: project-native evidence JSON can coexist with TSAL claim records without false blocking.
+- 0.3.2: destructive-absence semantics, authority-preserving deployment, and authoritative post-deploy control-plane reconciliation.
 
 ## Versioning
 
