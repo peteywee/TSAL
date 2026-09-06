@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.3.3 — Control-plane/workload boundary
+
+This patch release codifies the architectural model validated by XQueue 1.1.0 and establishes the responsibility boundary future TOS work must build around.
+
+### Added
+
+- Normative TSAL/TOS/workload responsibility split: TSAL defines correctness and proof; a control plane such as TOS observes change, evaluates policy, executes bounded actions, verifies outcomes, and escalates; workloads retain domain behavior and local safety controls.
+- Explicit rule that TSAL is not runtime middleware and that workloads must remain independently safe when TSAL or TOS is unavailable.
+- Explicit rule that loss of a control plane cannot expand workload authority.
+- Standard-adoption flow separating detection, compatibility assessment, candidate construction, verification, and project release authority.
+- Decision boundary for keeping project-specific behavior in workloads while promoting reusable automation/governance rules into TSAL and autonomous cross-project action into TOS.
+
+### Changed
+
+- Integration guidance now states that a new TSAL release does not silently mutate projects.
+- Versioning guidance now separates TSAL standard versions from workload/application versions and preserves previously proven workload releases as immutable historical evidence.
+- Operational repair of already-approved external state is distinguished from software release/version changes when repository content does not change.
+- README fundamental rules now include control-plane responsibility, workload independent safety, detection-vs-adoption, and immutable project-release evidence.
+
+### Compatibility
+
+- TSAL release version advances to `0.3.3`.
+- Project manifest remains schema `0.3`.
+- Automation contract remains schema `0.2`.
+- Evidence and conformance report remain schema `0.3`.
+- Incident schema remains `0.2`.
+- No new backend, AI, provider, or TOS runtime dependency is introduced.
+- Existing TSAL 0.3.2-aware projects are not automatically modified by this release.
+
 ## 0.3.2 — External state preservation
 
 This patch release promotes a production lesson discovered while reconciling XQueue against Cloudflare control-plane state.
