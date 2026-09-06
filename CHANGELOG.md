@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.3.2 — External state preservation
+
+This patch release promotes a production lesson discovered while reconciling XQueue against Cloudflare control-plane state.
+
+### Added
+
+- Normative external-state preservation policy in `docs/EXTERNAL-STATE-PRESERVATION.md`.
+- Destructive-absence rule: empty, null, default, or omission-like configuration values must not be assumed non-mutating when provider semantics can delete, revoke, replace, or reset external state.
+- Authority-preserving deployment rule: non-authoritative deploy paths must preserve external authority state rather than implicitly mutate it.
+- Explicit separation between ordinary deployment authority and control-plane authority mutation.
+- Post-deploy reconciliation requirement for material R3 external authority surfaces.
+- Failure-matrix coverage for destructive empty/default configuration and provider replacement semantics.
+
+### Changed
+
+- Conformance guidance now makes authoritative provider-state reconciliation part of `deployment` evidence for R3 control-plane authority.
+- Repository verification now requires the external-state preservation policy artifact.
+- XQueue reference guidance now records the 0.3.2 lesson that successful code/configuration checks cannot substitute for authoritative external deployment state.
+
+### Compatibility
+
+- TSAL release version advances to `0.3.2`.
+- Project manifest remains schema `0.3`.
+- Automation contract remains schema `0.2`.
+- Evidence and conformance report remain schema `0.3`.
+- Incident schema remains `0.2`.
+- No new backend, AI, provider, or TOS dependency is introduced.
+
 ## 0.3.1 — Evidence discovery compatibility
 
 This patch release fixes a dogfooding defect discovered while migrating XQueue to TSAL 0.3.0.
