@@ -42,6 +42,15 @@ function listJsonFiles(root) {
   return files.sort();
 }
 
+function isTsalEvidenceCandidate(record) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return false;
+  if ([CURRENT_EVIDENCE_SCHEMA, LEGACY_EVIDENCE_SCHEMA].includes(record.schema_version)) return true;
+
+  return ['evidence_id', 'claim_id', 'evidence_class'].some((key) =>
+    Object.prototype.hasOwnProperty.call(record, key)
+  );
+}
+
 function loadEvidence(project) {
   const records = [];
   const errors = [];
@@ -60,6 +69,13 @@ function loadEvidence(project) {
     }
 
     const relative = path.relative(project.root, file).split(path.sep).join('/');
+
+    // Projects may keep project-native JSON evidence in the same directory.
+    // Only records that identify themselves as TSAL evidence are interpreted
+    // against TSAL evidence schemas. This prevents native evidence formats from
+    // being falsely treated as malformed TSAL records.
+    if (!isTsalEvidenceCandidate(record)) continue;
+
     if (record?.schema_version === LEGACY_EVIDENCE_SCHEMA) {
       warnings.push(`legacy evidence ${relative} uses schema 0.2 and cannot prove claim-level 0.3 checks without claim_id/evidence_class`);
       records.push({ ...record, _file: relative, _legacy: true });
