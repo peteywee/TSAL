@@ -93,6 +93,28 @@ function makeProject({ manifestSchema = '0.3', tsalVersion = '0.3.0', contractSc
   return root;
 }
 
+function writeEvidence(root, { suffix, evidenceClass, result = 'pass', producedAt = '2026-09-05T20:00:00Z', validUntil = null }) {
+  const evidenceId = `ev-${suffix.replace(/\./g, '-')}-${evidenceClass}`;
+  const record = {
+    schema_version: '0.3',
+    evidence_id: evidenceId,
+    project_id: 'test.r3',
+    automation_id: 'test.publisher',
+    tsal_version: '0.3.0',
+    candidate: null,
+    produced_at: producedAt,
+    valid_until: validUntil,
+    claim_id: `test.publisher.${suffix}`,
+    claim: `Proof for ${suffix}`,
+    result,
+    evidence_class: evidenceClass,
+    evidence_type: evidenceClass === 'runtime' ? 'runtime_observation' : 'test',
+    details: {},
+    provenance: { producer: 'test', source: 'audit regression', run_id: null, actor: null }
+  };
+  writeText(path.join(root, 'evidence', `${evidenceId}.json`), `${JSON.stringify(record, null, 2)}\n`);
+}
+
 test('R0 reference example is strictly PROVEN', () => {
   const report = auditProject(path.resolve('examples/r0-readonly'));
   assert.equal(report.result, 'proven');
@@ -115,29 +137,54 @@ test('legacy R3 contract remains auditable but cannot be falsely promoted to PRO
   assert.equal(auditExitCode(report, true), 2);
 });
 
+test('current R3 contract becomes PROVEN only with qualifying evidence at each required layer', () => {
+  const root = makeProject();
+  writeEvidence(root, { suffix: 'authority.enforced', evidenceClass: 'candidate' });
+  writeEvidence(root, { suffix: 'retry.bounded', evidenceClass: 'implementation' });
+  writeEvidence(root, { suffix: 'ambiguity.fail_closed', evidenceClass: 'candidate' });
+  writeEvidence(root, { suffix: 'recovery.verified', evidenceClass: 'reconciliation' });
+  writeEvidence(root, { suffix: 'runtime.safe', evidenceClass: 'runtime', validUntil: '2099-01-01T00:00:00Z' });
+  writeEvidence(root, { suffix: 'deployment.authority', evidenceClass: 'deployment' });
+
+  const report = auditProject(root);
+  assert.equal(report.result, 'proven');
+  assert.equal(report.summary.blocking, 0);
+  assert.equal(report.summary.unproven, 0);
+  assert.equal(auditExitCode(report, true), 0);
+});
+
 test('latest qualifying FAIL evidence is BLOCKING', () => {
   const root = makeProject();
-  const evidence = {
-    schema_version: '0.3',
-    evidence_id: 'ev-authority-fail',
-    project_id: 'test.r3',
-    automation_id: 'test.publisher',
-    tsal_version: '0.3.0',
-    candidate: null,
-    produced_at: '2026-09-05T20:00:00Z',
-    valid_until: null,
-    claim_id: 'test.publisher.authority.enforced',
-    claim: 'Execution authority is enforced.',
-    result: 'fail',
-    evidence_class: 'candidate',
-    evidence_type: 'test',
-    details: {},
-    provenance: { producer: 'test', source: 'negative test', run_id: null, actor: null }
-  };
-  writeText(path.join(root, 'evidence', 'authority.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+  writeEvidence(root, { suffix: 'authority.enforced', evidenceClass: 'candidate', result: 'fail' });
 
   const report = auditProject(root);
   assert.equal(report.result, 'blocking');
   assert.ok(report.checks.some((item) => item.id === 'test.publisher.authority.enforced' && item.result === 'blocking'));
   assert.equal(auditExitCode(report, false), 1);
+});
+
+test('expired runtime evidence does not prove current runtime safety', () => {
+  const root = makeProject();
+  writeEvidence(root, { suffix: 'authority.enforced', evidenceClass: 'candidate' });
+  writeEvidence(root, { suffix: 'retry.bounded', evidenceClass: 'candidate' });
+  writeEvidence(root, { suffix: 'ambiguity.fail_closed', evidenceClass: 'candidate' });
+  writeEvidence(root, { suffix: 'recovery.verified', evidenceClass: 'candidate' });
+  writeEvidence(root, { suffix: 'deployment.authority', evidenceClass: 'deployment' });
+  writeEvidence(root, { suffix: 'runtime.safe', evidenceClass: 'runtime', validUntil: '2020-01-01T00:00:00Z' });
+
+  const report = auditProject(root);
+  assert.equal(report.result, 'partial');
+  assert.ok(report.checks.some((item) => item.id === 'test.publisher.runtime.safe' && item.result === 'unproven'));
+});
+
+test('malformed declared evidence paths fail closed instead of being traversed', () => {
+  const root = makeProject();
+  const manifestPath = path.join(root, 'tsal.project.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.artifacts.evidence_directory = '../outside';
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  const report = auditProject(root);
+  assert.equal(report.result, 'blocking');
+  assert.ok(report.blocking_findings.some((finding) => finding.includes('parent segments')));
 });
