@@ -11,6 +11,7 @@ const required = [
   'AUTOMATION-CONTRACT.schema.json',
   'FAILURE-TEST-MATRIX.md',
   'docs/ARCHITECTURE.md',
+  'docs/TERMINOLOGY.md',
   'docs/INTEGRATION-MODEL.md',
   'docs/CONFORMANCE-MODEL.md',
   'docs/EXTERNAL-STATE-PRESERVATION.md',

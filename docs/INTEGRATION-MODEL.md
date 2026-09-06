@@ -2,6 +2,8 @@
 
 TSAL integrates by contract, not by repository inheritance.
 
+Normative terms are defined in [`TERMINOLOGY.md`](./TERMINOLOGY.md).
+
 ## Integration principle
 
 A TSAL-aware project publishes a machine-readable description of itself. Consumers read that description and optionally contribute evidence or conformance results through declared adapters.
@@ -24,7 +26,7 @@ A project MUST NOT delegate its local fail-closed safety controls to a control p
 
 ## Control-plane integration
 
-A future control plane such as TOS SHOULD consume neutral TSAL artifacts:
+A control plane such as TOS SHOULD consume neutral TSAL artifacts:
 
 ```text
 TSAL project manifest
@@ -36,14 +38,41 @@ TSAL project manifest
         └── declared bounded actions / adapters
 ```
 
-The control plane MAY index, search, visualize, observe, diagnose, schedule reviews, correlate evidence, build compatibility candidates, invoke policy-authorized repair primitives, independently verify outcomes, or escalate to an owner.
+The control plane MAY index, search, visualize, observe, diagnose, schedule reviews, correlate evidence, build compatibility candidates, propose actions, invoke policy-authorized repair primitives, independently verify outcomes, or escalate to an owner.
 
 The control plane MUST NOT:
 - rewrite project execution history to make conformance appear successful;
 - infer authority from credentials alone;
 - silently broaden a workload contract;
 - require a workload to lose its local safety properties when the control plane is unavailable;
-- silently adopt a new TSAL release into a workload without a workload candidate and its own release decision.
+- silently adopt a new TSAL release into a workload without a workload candidate and its own release decision;
+- allow discretionary userland/AI reasoning to bypass a deterministic privileged-admission control required by policy;
+- treat a denial on one TOS-managed execution path as permission to retry through an alternate adapter/tool merely to obtain a side effect.
+
+## Control-plane internal authority boundary
+
+TSAL does not prescribe TOS internals, but a consumer claiming autonomous privileged execution must distinguish **reasoning/proposal** from **authority admission**.
+
+For mechanically decidable protected mutations, especially R3 operations, the expected semantic path is:
+
+```text
+observe / diagnose / propose
+          ↓
+privileged admission
+(actor + capability + authority source + target/scope + conditions)
+    ├─ deny / reserved / UNKNOWN → evidence + escalation
+    └─ allow
+         ↓
+ adapter / workload bounded action
+         ↓
+ authoritative observation + evidence
+         ↓
+ verification / reconciliation
+```
+
+A consumer may call this an execution kernel, policy engine, admission controller, capability gate, or another name. It MUST NOT use implementation naming to evade the semantics.
+
+Read-only observation MAY use a simpler path when the applicable contract permits it. Observation never implies mutation authority.
 
 ## Role boundary
 
@@ -51,16 +80,19 @@ The canonical responsibility split is:
 
 ```text
 TSAL
-  defines rules, contracts, evidence semantics, conformance, and compatibility expectations
+  defines rules, contracts, terminology, evidence semantics, conformance, and compatibility expectations
 
-TOS / control plane
-  detects change, evaluates policy, decides, executes bounded operations, verifies, and escalates
+Control plane / TOS userland
+  detects change, observes, diagnoses, plans, coordinates, proposes, verifies, and escalates
+
+Privileged-admission boundary / TOS kernel equivalent
+  deterministically admits or denies protected TOS-managed mutation
 
 Workload
-  performs domain behavior and exposes truthful facts, evidence, and bounded actions
+  performs domain behavior and exposes truthful facts, evidence, and declared bounded actions
 ```
 
-This means TSAL is not runtime middleware between TOS and the workload.
+This means TSAL is not runtime middleware, not a control-plane application, and not the privileged execution kernel.
 
 ## Standard adoption and project versions
 
@@ -101,6 +133,8 @@ Examples:
 - TOS adapter: registry, governance decision, evidence aggregation, bounded action invocation.
 
 An adapter is not automatically trusted. Its outputs are evidence with provenance.
+
+A write-capable adapter MUST distinguish credentials from authority context and MUST preserve the bounded action admitted by policy. It MUST NOT broaden target/scope, invent a capability grant, hide destructive replacement/omission semantics, or translate UNKNOWN into success.
 
 ## Push and pull
 
@@ -164,11 +198,11 @@ The minimum useful system is:
 project + manifest + contract + deterministic checks
 ```
 
-AI, a network API, a hosted database, and TOS are optional accelerators, not prerequisites.
+AI, a network API, a hosted database, a control plane, and a control-plane kernel are optional accelerators, not prerequisites for project-local TSAL conformance.
 
-## Future TOS relationship
+## TOS relationship
 
-TSAL should eventually be one governed subsystem of a broader operating system, but that relationship should be expressed as an integration dependency:
+TSAL is a governed standard consumed by a broader operating system through integration dependencies:
 
 ```text
 TOS -> TSAL interfaces
@@ -180,6 +214,7 @@ not:
 ```text
 TSAL core -> TOS implementation
 workload runtime -> TOS as a prerequisite for local safety
+TSAL -> live TOS kernel as a prerequisite for conformance
 ```
 
-This allows TSAL to remain reusable outside TOS, allows TOS to replace or upgrade its internals without changing TSAL's core standard, and keeps workloads independently safe when either integration layer is unavailable.
+TOS may implement a deterministic execution kernel for its own privileged authority boundary. That kernel is a TOS implementation responsibility governed by TSAL-compatible policy; it is not part of TSAL core.
