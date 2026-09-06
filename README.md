@@ -6,7 +6,7 @@ TSAL is a local-first, technology-agnostic automation engineering standard with 
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-Current version: **0.3.0 — evidence-driven conformance**
+Current version: **0.3.1 — evidence discovery compatibility**
 
 ## Architecture
 
@@ -78,6 +78,8 @@ npm run verify
 `doctor` answers whether the project socket is structurally coherent. `audit` answers what is actually proven.
 
 Default audit mode exits nonzero only for `BLOCKING` conformance. `--strict` exits nonzero unless overall conformance is `PROVEN` and is intended for CI/release gates.
+
+As of 0.3.1, a declared evidence directory may contain both TSAL evidence records and project-native JSON evidence. Project-native JSON is ignored by the TSAL evidence parser unless it identifies itself as TSAL evidence; malformed TSAL-shaped evidence still fails closed.
 
 AI MAY help draft, explain, classify, and inspect. Deterministic checks SHOULD enforce anything that can be mechanically proven.
 
@@ -245,10 +247,11 @@ TSAL/
 
 XQueue is the first reference workload, not a dependency. [`references/xqueue/LESSONS-LEARNED.md`](./references/xqueue/LESSONS-LEARNED.md) records which lessons were promoted and which implementation choices stayed project-specific.
 
-XQueue dogfooding drove both 0.2.1 and 0.3.0:
+XQueue dogfooding drove 0.2.1, 0.3.0, and 0.3.1:
 
 - 0.2.1: declared-path validation, complete Git-trackable project sockets, and enforced release versioning.
 - 0.3.0: configuration-vs-runtime evidence separation, claim-level conformance, backward-compatible legacy audit, and separated retry semantics.
+- 0.3.1: project-native evidence JSON can coexist with TSAL claim records without false blocking.
 
 ## Versioning
 

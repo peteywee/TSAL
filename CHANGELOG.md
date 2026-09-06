@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.1 — Evidence discovery compatibility
+
+This patch release fixes a dogfooding defect discovered while migrating XQueue to TSAL 0.3.0.
+
+### Fixed
+
+- `tsal audit` no longer assumes every `.json` file inside a declared evidence directory is a TSAL evidence record.
+- Project-native JSON evidence can coexist with TSAL claim-level evidence without causing false `BLOCKING` conformance.
+- JSON that identifies itself as TSAL evidence through a supported TSAL evidence schema or TSAL evidence identity fields is still validated fail-closed.
+
+### Added
+
+- Regression coverage proving XQueue-style native evidence JSON is ignored by the TSAL record parser while malformed TSAL-shaped evidence remains blocking.
+
+### Compatibility
+
+- TSAL release version advances to `0.3.1`.
+- Project manifest remains schema `0.3`.
+- Automation contract remains schema `0.2`.
+- Evidence and conformance report remain schema `0.3`.
+- Incident schema remains `0.2`.
+
 ## 0.3.0 — Evidence-driven conformance
 
 This minor release promotes the deeper model lessons discovered while dogfooding TSAL against XQueue. It distinguishes declared configuration from implementation, candidate, deployment, and runtime truth; introduces a real local `tsal audit`; and replaces the overloaded retry model from automation-contract schema 0.1.
