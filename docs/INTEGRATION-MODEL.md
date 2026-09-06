@@ -6,7 +6,7 @@ TSAL integrates by contract, not by repository inheritance.
 
 A TSAL-aware project publishes a machine-readable description of itself. Consumers read that description and optionally contribute evidence or conformance results through declared adapters.
 
-The project remains independently buildable and deployable.
+The project remains independently buildable, deployable, and safe to operate without a live TSAL or TOS service.
 
 ## Project integration
 
@@ -20,6 +20,8 @@ This manifest points to one or more automation contracts and declares optional e
 
 A project MUST NOT vendor-copy TSAL policy documents merely to claim conformance.
 
+A project MUST NOT delegate its local fail-closed safety controls to a control plane. Control-plane unavailability cannot expand project authority.
+
 ## Control-plane integration
 
 A future control plane such as TOS SHOULD consume neutral TSAL artifacts:
@@ -30,10 +32,61 @@ TSAL project manifest
         ├── automation contracts
         ├── conformance reports
         ├── evidence records
-        └── incident records
+        ├── incident records
+        └── declared bounded actions / adapters
 ```
 
-The control plane MAY index, search, visualize, schedule reviews, correlate evidence, or enforce organization policy. It MUST NOT rewrite project execution history to make conformance appear successful.
+The control plane MAY index, search, visualize, observe, diagnose, schedule reviews, correlate evidence, build compatibility candidates, invoke policy-authorized repair primitives, independently verify outcomes, or escalate to an owner.
+
+The control plane MUST NOT:
+- rewrite project execution history to make conformance appear successful;
+- infer authority from credentials alone;
+- silently broaden a workload contract;
+- require a workload to lose its local safety properties when the control plane is unavailable;
+- silently adopt a new TSAL release into a workload without a workload candidate and its own release decision.
+
+## Role boundary
+
+The canonical responsibility split is:
+
+```text
+TSAL
+  defines rules, contracts, evidence semantics, conformance, and compatibility expectations
+
+TOS / control plane
+  detects change, evaluates policy, decides, executes bounded operations, verifies, and escalates
+
+Workload
+  performs domain behavior and exposes truthful facts, evidence, and bounded actions
+```
+
+This means TSAL is not runtime middleware between TOS and the workload.
+
+## Standard adoption and project versions
+
+TSAL and project versions evolve independently.
+
+A new TSAL release MAY cause a control plane or CI system to assess whether a project is affected. It MUST NOT itself mutate that project.
+
+```text
+new TSAL release
+      │
+      ▼
+compatibility assessment
+   ┌──┴─────────────┐
+   │                │
+unaffected       adoption needed
+   │                │
+no project       explicit project candidate
+change              │
+                    ▼
+               project tests + TSAL audit
+                    │
+                    ▼
+               project release decision
+```
+
+If adoption changes committed project content, that project follows its own versioning policy. A previously proven project release remains immutable historical evidence; it is not retroactively redefined by a newer TSAL release.
 
 ## Adapter model
 
@@ -45,7 +98,7 @@ Examples:
 - deployment adapter: release identity and postconditions;
 - database adapter: migration candidate and verification evidence;
 - AI adapter: explanation, classification assistance, draft contracts;
-- TOS adapter: registry, governance decision, evidence aggregation.
+- TOS adapter: registry, governance decision, evidence aggregation, bounded action invocation.
 
 An adapter is not automatically trusted. Its outputs are evidence with provenance.
 
@@ -61,6 +114,7 @@ Useful for:
 - local CLI audits;
 - CI;
 - TOS inventory;
+- compatibility assessment;
 - AI-assisted review.
 
 ### Push
@@ -100,6 +154,8 @@ Consumers MUST reject incompatible major schema versions rather than guessing.
 
 Consumers SHOULD tolerate additive optional fields within a compatible version.
 
+A consumer MAY detect that a newer TSAL release exists, but detection is not adoption. Adoption requires compatibility evaluation and an explicit project candidate whenever project content changes.
+
 ## Local-first rule
 
 The minimum useful system is:
@@ -116,12 +172,14 @@ TSAL should eventually be one governed subsystem of a broader operating system, 
 
 ```text
 TOS -> TSAL interfaces
+TOS -> project interfaces / declared actions
 ```
 
 not:
 
 ```text
 TSAL core -> TOS implementation
+workload runtime -> TOS as a prerequisite for local safety
 ```
 
-This allows TSAL to remain reusable outside TOS and allows TOS to replace or upgrade its internals without changing TSAL's core standard.
+This allows TSAL to remain reusable outside TOS, allows TOS to replace or upgrade its internals without changing TSAL's core standard, and keeps workloads independently safe when either integration layer is unavailable.
