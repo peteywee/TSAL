@@ -11,7 +11,7 @@
     "doctor": "node tooling/cli.mjs doctor .",
     "test": "node --test",
     "version:check": "node tooling/version-policy.mjs sync",
-    "verify": "node tooling/version-policy.mjs sync && node tooling/verify-repo.mjs && node tooling/cli.mjs doctor . && node --test"
+    "verify": "node tooling/version-policy.mjs sync && node tooling/verify-repo.mjs && node tooling/cli.mjs doctor . && node tooling/cli.mjs doctor examples/r0-readonly && node --test"
   },
   "engines": {
     "node": ">=22"
