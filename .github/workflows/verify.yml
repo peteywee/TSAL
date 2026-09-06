@@ -2,7 +2,7 @@ name: verify
 
 on:
   push:
-    branches: [main, foundation-v0.2]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -13,7 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: npm run verify
+      - name: Enforce TSAL version bump on repository changes
+        if: github.event_name == 'pull_request'
+        run: node tooling/version-policy.mjs pr "${{ github.event.pull_request.base.sha }}"

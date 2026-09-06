@@ -6,7 +6,7 @@ TSAL is a local-first, technology-agnostic automation engineering standard with 
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-Current version: **0.2.0 — platform foundation**
+Current version: **0.2.1 — XQueue dogfood hardening**
 
 ## Architecture
 
@@ -53,7 +53,9 @@ my-automation/
 │   ├── ARCHITECTURE.md
 │   ├── RUNBOOK.md
 │   └── incidents/
+│       └── README.md
 └── evidence/
+    └── README.md
 ```
 
 A future TOS control plane, CI pipeline, AI assistant, or local tool can consume the same interface.
@@ -68,6 +70,8 @@ node tooling/cli.mjs doctor ./my-automation
 node tooling/cli.mjs inspect ./my-automation
 npm run verify
 ```
+
+As of 0.2.1, `init` materializes every artifact path it declares, and `doctor` verifies declared artifact paths, canonical path form, filesystem type, and automation contract presence/JSON parseability.
 
 AI MAY help draft, explain, classify, and inspect. Deterministic checks SHOULD enforce anything that can be mechanically proven.
 
@@ -125,12 +129,15 @@ TSAL core -> TOS implementation
 ```text
 TSAL/
 ├── README.md
+├── CHANGELOG.md
 ├── VERSION
 ├── tsal.project.json
 ├── AUTOMATION-LIFECYCLE.md
 ├── AUTOMATION-CONTRACT.schema.json
 ├── FAILURE-TEST-MATRIX.md
 ├── docs/
+│   └── VERSIONING.md
+├── evidence/
 ├── interfaces/
 ├── schemas/
 ├── templates/
@@ -156,6 +163,7 @@ TSAL/
 12. **Incidents feed improvement.** Repeated failures should promote stronger controls when justified.
 13. **AI assists; deterministic controls enforce.**
 14. **TSAL core stays consumer-neutral.** New systems attach through interfaces.
+15. **Canonical TSAL changes are versioned.** Repository changes beyond version metadata MUST increase the TSAL release version.
 
 ## Risk classes
 
@@ -169,6 +177,14 @@ TSAL/
 ## XQueue
 
 XQueue is the first reference workload, not a dependency. [`references/xqueue/LESSONS-LEARNED.md`](./references/xqueue/LESSONS-LEARNED.md) records which lessons were promoted and which implementation choices stayed project-specific.
+
+The 0.2.1 hardening release was driven by XQueue dogfooding: declared paths are now mechanically checked, generated project sockets are complete and Git-trackable, and release version changes are enforced rather than remembered manually.
+
+## Versioning
+
+See [`docs/VERSIONING.md`](./docs/VERSIONING.md) for the enforced release policy and [`CHANGELOG.md`](./CHANGELOG.md) for release history.
+
+TSAL release versions and individual schema versions are intentionally independent. A patch release can harden tooling without changing schema contracts.
 
 ## Evolution rule
 
