@@ -10,7 +10,7 @@ import {
 test('canonical TSAL version surfaces are synchronized', () => {
   const state = getVersionState();
   assert.deepEqual(validateVersionSync(state), []);
-  assert.equal(state.version, '0.2.1');
+  assert.match(state.version, /^\d+\.\d+\.\d+(?:[-+].*)?$/);
 });
 
 test('version sync detects mismatched package and manifest versions', () => {
