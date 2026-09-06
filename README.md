@@ -6,7 +6,7 @@ TSAL is a local-first, technology-agnostic automation engineering standard with 
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-Current version: **0.3.3 — control-plane/workload boundary**
+Current version: **0.3.4 — privileged-admission and terminology hardening**
 
 ## Architecture
 
@@ -37,18 +37,23 @@ The core MUST NOT depend on TOS, AI, GitHub, Cloudflare, Supabase, a scheduler, 
 
 ```text
 TSAL
-  defines rules, contracts, evidence semantics, conformance, and compatibility expectations
+  defines rules, terminology, contracts, evidence semantics, conformance, and compatibility expectations
 
-TOS / control plane
-  detects change, evaluates policy, decides, executes bounded operations, verifies, and escalates
+Control plane / TOS userland
+  detects change, observes, diagnoses, plans, coordinates, proposes, verifies, and escalates
+
+Privileged-admission boundary / TOS execution kernel equivalent
+  deterministically admits or denies protected TOS-managed mutation
 
 Workload
   performs domain behavior and exposes truthful facts, evidence, and bounded actions
 ```
 
-TSAL is not runtime middleware between TOS and a workload. Workloads must remain independently safe if TSAL or TOS is unavailable. A new TSAL release may trigger compatibility assessment, but it must not silently mutate a workload; an adoption that changes committed workload content is a new workload candidate subject to that project's own version, tests, evidence, and release policy.
+TSAL is not runtime middleware between TOS and a workload, not a TOS application, and not the TOS kernel. Workloads must remain independently safe if TSAL or TOS is unavailable. A new TSAL release may trigger compatibility assessment, but it must not silently mutate a workload; an adoption that changes committed workload content is a new workload candidate subject to that project's own version, tests, evidence, and release policy.
 
-Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), [`docs/INTEGRATION-MODEL.md`](./docs/INTEGRATION-MODEL.md), [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md), [`docs/EXTERNAL-STATE-PRESERVATION.md`](./docs/EXTERNAL-STATE-PRESERVATION.md), and [`docs/VERSIONING.md`](./docs/VERSIONING.md).
+A control plane that claims autonomous privileged execution should separate discretionary reasoning from deterministic privileged admission. For R3 protected mutations, mechanically evaluable authority/safety controls must not be replaced by AI confidence, credentials, or alternate-tool reachability.
+
+Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), [`docs/TERMINOLOGY.md`](./docs/TERMINOLOGY.md), [`docs/INTEGRATION-MODEL.md`](./docs/INTEGRATION-MODEL.md), [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md), [`docs/EXTERNAL-STATE-PRESERVATION.md`](./docs/EXTERNAL-STATE-PRESERVATION.md), and [`docs/VERSIONING.md`](./docs/VERSIONING.md).
 
 ## Stable project socket
 
@@ -96,7 +101,7 @@ Default audit mode exits nonzero only for `BLOCKING` conformance. `--strict` exi
 
 As of 0.3.1, a declared evidence directory may contain both TSAL evidence records and project-native JSON evidence. Project-native JSON is ignored by the TSAL evidence parser unless it identifies itself as TSAL evidence; malformed TSAL-shaped evidence still fails closed.
 
-AI MAY help draft, explain, classify, and inspect. Deterministic checks SHOULD enforce anything that can be mechanically proven.
+AI MAY help draft, explain, classify, inspect, and propose. Deterministic checks SHOULD enforce anything that can be mechanically proven. AI confidence is not authority.
 
 ## Conformance is evidence-layered
 
@@ -227,6 +232,7 @@ TSAL/
 ├── FAILURE-TEST-MATRIX.md
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── TERMINOLOGY.md
 │   ├── CONFORMANCE-MODEL.md
 │   ├── EXTERNAL-STATE-PRESERVATION.md
 │   ├── INTEGRATION-MODEL.md
@@ -269,6 +275,12 @@ TSAL/
 22. **Workloads remain independently safe.** Loss of TSAL/TOS availability cannot expand workload authority or disable local fail-closed controls.
 23. **Detection is not adoption.** A newer TSAL release may be detected automatically, but it cannot silently mutate a workload.
 24. **Project releases remain immutable evidence.** If TSAL adoption changes committed workload content, it is a new workload candidate subject to that project's own version and release policy.
+25. **Credential is not authority.** Technical reachability never substitutes for a capability grant.
+26. **Observation is not mutation.** Read access does not create write authority.
+27. **Privileged admission is non-bypassable.** A denial cannot be converted into authority by trying another TOS-managed adapter/tool path.
+28. **AI reasoning does not outrank deterministic policy.** Mechanically evaluable privileged controls are enforced mechanically.
+29. **Override is additive evidence.** Authorized override may change what happens next; it does not erase what happened before.
+30. **Target architecture is not implementation proof.** Consumers must distinguish intended controls from controls actually implemented and evidenced.
 
 ## Risk classes
 
@@ -277,19 +289,20 @@ TSAL/
 | R0 | Read-only | validation, observability |
 | R1 | Local/reversible mutation | state, rollback, implementation evidence |
 | R2 | External/reversible mutation | authority, idempotency, bounded retry/reconciliation, runtime evidence |
-| R3 | Public, financial, destructive, security-sensitive, difficult-to-reverse | exact-candidate, deployment, runtime, recovery, owner-reserved boundaries |
+| R3 | Public, financial, destructive, security-sensitive, difficult-to-reverse | exact-candidate, deployment, runtime, recovery, owner-reserved boundaries, deterministic privileged admission where mechanically evaluable |
 
 ## XQueue
 
 XQueue is the first reference workload, not a dependency. [`references/xqueue/LESSONS-LEARNED.md`](./references/xqueue/LESSONS-LEARNED.md) records which lessons were promoted and which implementation choices stayed project-specific.
 
-XQueue dogfooding drove 0.2.1, 0.3.0, 0.3.1, 0.3.2, and 0.3.3:
+XQueue dogfooding drove 0.2.1, 0.3.0, 0.3.1, 0.3.2, 0.3.3, and 0.3.4:
 
 - 0.2.1: declared-path validation, complete Git-trackable project sockets, and enforced release versioning.
 - 0.3.0: configuration-vs-runtime evidence separation, claim-level conformance, backward-compatible legacy audit, and separated retry semantics.
 - 0.3.1: project-native evidence JSON can coexist with TSAL claim records without false blocking.
 - 0.3.2: destructive-absence semantics, authority-preserving deployment, and authoritative post-deploy control-plane reconciliation.
 - 0.3.3: explicit TSAL/TOS/workload responsibility boundaries and independent standard-versus-workload version evolution.
+- 0.3.4: controlled authority terminology plus the generic separation between discretionary control-plane reasoning and deterministic privileged admission.
 
 ## Versioning
 
