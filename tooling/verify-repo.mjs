@@ -4,18 +4,27 @@ import path from 'node:path';
 const root = process.cwd();
 const required = [
   'README.md',
+  'CHANGELOG.md',
   'VERSION',
+  'package.json',
   'AUTOMATION-LIFECYCLE.md',
   'AUTOMATION-CONTRACT.schema.json',
   'FAILURE-TEST-MATRIX.md',
   'docs/ARCHITECTURE.md',
   'docs/INTEGRATION-MODEL.md',
+  'docs/VERSIONING.md',
+  'docs/incidents/README.md',
+  'evidence/README.md',
   'interfaces/ADAPTER-CONTRACT.md',
   'interfaces/CONTROL-PLANE-PROTOCOL.md',
   'schemas/PROJECT-MANIFEST.schema.json',
   'schemas/EVIDENCE.schema.json',
   'schemas/INCIDENT.schema.json',
   'schemas/CONFORMANCE-REPORT.schema.json',
+  'templates/ARCHITECTURE.md',
+  'templates/RUNBOOK.md',
+  'tooling/cli.mjs',
+  'tooling/version-policy.mjs',
   'tsal.project.json'
 ];
 
