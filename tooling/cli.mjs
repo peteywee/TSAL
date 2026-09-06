@@ -13,6 +13,7 @@ const strictAudit = rest.includes('--strict');
 const toolingDir = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(toolingDir, '..');
 const TSAL_VERSION = fs.readFileSync(path.join(packageRoot, 'VERSION'), 'utf8').trim();
+const RESULT_RANK = { unproven: 0, partial: 1, proven: 2 };
 
 function fail(message) {
   console.error(`TSAL: FAIL — ${message}`);
@@ -40,6 +41,7 @@ function doctor(target) {
   console.log(`TSAL: ${manifest.tsal_version}`);
   console.log(`Manifest schema: ${manifest.schema_version}`);
   console.log(`Automations: ${manifest.automations.length}`);
+  console.log(`Conformance: ${manifest.conformance?.mode ?? 'advisory'}`);
   console.log(`Control plane: ${manifest.integration.control_plane.enabled ? 'enabled' : 'disabled'}`);
 }
 
@@ -88,6 +90,10 @@ function init(target) {
         project_key: null
       }
     },
+    conformance: {
+      mode: 'advisory',
+      minimum_result: 'partial'
+    },
     metadata: {}
   };
 
@@ -115,19 +121,39 @@ function inspect(target) {
     manifest_schema: manifest.schema_version,
     tsal_version: manifest.tsal_version,
     automations: manifest.automations,
+    conformance: manifest.conformance ?? { mode: 'advisory', minimum_result: 'unproven' },
     adapters: manifest.integration?.adapters ?? [],
     control_plane: manifest.integration?.control_plane ?? { enabled: false }
   }, null, 2));
 }
 
+function policyExitCode(report, root) {
+  if (strictAudit) return auditExitCode(report, true);
+  if (report.result === 'blocking') return 1;
+
+  let policy = null;
+  try {
+    policy = readJson(path.join(root, 'tsal.project.json')).conformance ?? null;
+  } catch {
+    return auditExitCode(report, false);
+  }
+
+  if (policy?.mode !== 'strict') return auditExitCode(report, false);
+  const minimum = policy.minimum_result ?? 'proven';
+  const resultRank = RESULT_RANK[report.result] ?? -1;
+  const minimumRank = RESULT_RANK[minimum] ?? RESULT_RANK.proven;
+  return resultRank >= minimumRank ? 0 : 2;
+}
+
 function audit(target) {
-  const report = auditProject(resolveTarget(target));
+  const root = resolveTarget(target);
+  const report = auditProject(root);
   console.log(jsonOutput ? JSON.stringify(report, null, 2) : formatAudit(report));
-  process.exitCode = auditExitCode(report, strictAudit);
+  process.exitCode = policyExitCode(report, root);
 }
 
 function help() {
-  console.log(`TSAL local tooling\n\nUsage:\n  tsal init <project-directory>\n  tsal doctor <project-directory>\n  tsal inspect <project-directory>\n  tsal audit <project-directory> [--json] [--strict]\n\nAudit exit behavior:\n  default: nonzero only for BLOCKING conformance\n  --strict: nonzero unless conformance is PROVEN\n\nThe CLI is local-first. It does not require AI, a backend, or TOS.`);
+  console.log(`TSAL local tooling\n\nUsage:\n  tsal init <project-directory>\n  tsal doctor <project-directory>\n  tsal inspect <project-directory>\n  tsal audit <project-directory> [--json] [--strict]\n\nAudit exit behavior:\n  advisory/default: nonzero only for BLOCKING conformance\n  manifest strict mode: enforce conformance.minimum_result\n  --strict: override and require PROVEN\n\nThe CLI is local-first. It does not require AI, a backend, or TOS.`);
 }
 
 switch (command) {
