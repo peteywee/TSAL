@@ -2,11 +2,11 @@
 
 **Top Shelf Automation Lifecycle**
 
-TSAL is a local-first, technology-agnostic automation engineering standard with machine-readable project, evidence, incident, and integration boundaries.
+TSAL is a local-first, technology-agnostic automation engineering standard with machine-readable project, evidence, incident, conformance, and integration boundaries.
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-Current version: **0.2.1 — XQueue dogfood hardening**
+Current version: **0.3.0 — evidence-driven conformance**
 
 ## Architecture
 
@@ -33,7 +33,7 @@ TSAL is deliberately split into a stable trunk and replaceable branches:
 
 The core MUST NOT depend on TOS, AI, GitHub, Cloudflare, Supabase, a scheduler, or a language runtime.
 
-Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) and [`docs/INTEGRATION-MODEL.md`](./docs/INTEGRATION-MODEL.md).
+Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), [`docs/INTEGRATION-MODEL.md`](./docs/INTEGRATION-MODEL.md), and [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md).
 
 ## Stable project socket
 
@@ -43,7 +43,7 @@ Projects do **not** clone TSAL. They connect to it by exposing:
 tsal.project.json
 ```
 
-That manifest identifies the project, targeted TSAL version, automation contracts, evidence/incident locations, adapters, and optional control-plane connection.
+The manifest identifies the project, targeted TSAL version, automation contracts, evidence/incident locations, adapters, conformance policy, and optional control-plane connection.
 
 ```text
 my-automation/
@@ -55,7 +55,8 @@ my-automation/
 │   └── incidents/
 │       └── README.md
 └── evidence/
-    └── README.md
+    ├── README.md
+    └── *.json
 ```
 
 A future TOS control plane, CI pipeline, AI assistant, or local tool can consume the same interface.
@@ -68,12 +69,69 @@ No AI or backend is required.
 node tooling/cli.mjs init ./my-automation
 node tooling/cli.mjs doctor ./my-automation
 node tooling/cli.mjs inspect ./my-automation
+node tooling/cli.mjs audit ./my-automation
+node tooling/cli.mjs audit ./my-automation --json
+node tooling/cli.mjs audit ./my-automation --strict
 npm run verify
 ```
 
-As of 0.2.1, `init` materializes every artifact path it declares, and `doctor` verifies declared artifact paths, canonical path form, filesystem type, and automation contract presence/JSON parseability.
+`doctor` answers whether the project socket is structurally coherent. `audit` answers what is actually proven.
+
+Default audit mode exits nonzero only for `BLOCKING` conformance. `--strict` exits nonzero unless overall conformance is `PROVEN` and is intended for CI/release gates.
 
 AI MAY help draft, explain, classify, and inspect. Deterministic checks SHOULD enforce anything that can be mechanically proven.
+
+## Conformance is evidence-layered
+
+TSAL 0.3 does not treat a repository declaration as proof of current production reality.
+
+```text
+specification
+    ↓
+implementation
+    ↓
+exact candidate
+    ↓
+deployment
+    ↓
+runtime
+    ↓
+reconciliation (when uncertainty exists)
+```
+
+Evidence classes are:
+
+- `specification`
+- `implementation`
+- `candidate`
+- `deployment`
+- `runtime`
+- `reconciliation`
+- `attestation`
+
+Conformance statuses are:
+
+- `PROVEN`
+- `PARTIAL`
+- `UNPROVEN`
+- `BLOCKING`
+- `NOT_APPLICABLE` for individual checks
+
+Repository configuration cannot prove deployed configuration, and deployed configuration cannot prove current runtime health. See [`docs/CONFORMANCE-MODEL.md`](./docs/CONFORMANCE-MODEL.md).
+
+## Retry semantics
+
+Automation-contract schema 0.2 separates three mechanisms that schema 0.1 overloaded into one retry object:
+
+```text
+dispatch retry
+    !=
+later scheduler reevaluation
+    !=
+ambiguous-outcome reconciliation/retry
+```
+
+For an ambiguous external side effect, automatic retry remains prohibited until reconciliation proves it safe. See [`docs/RETRY-MODEL.md`](./docs/RETRY-MODEL.md).
 
 ## Lifecycle
 
@@ -96,16 +154,19 @@ See [`AUTOMATION-LIFECYCLE.md`](./AUTOMATION-LIFECYCLE.md).
 
 ## Machine-readable foundation
 
+Current schemas:
+
 ```text
-AUTOMATION-CONTRACT.schema.json
+AUTOMATION-CONTRACT.schema.json          # schema 0.2
 schemas/
-├── PROJECT-MANIFEST.schema.json
-├── EVIDENCE.schema.json
-├── INCIDENT.schema.json
-└── CONFORMANCE-REPORT.schema.json
+├── PROJECT-MANIFEST.schema.json         # schema 0.3
+├── EVIDENCE.schema.json                 # schema 0.3
+├── INCIDENT.schema.json                 # schema 0.2
+├── CONFORMANCE-REPORT.schema.json       # schema 0.3
+└── legacy/
 ```
 
-These deliberately separate promises, project identity, proof, incidents, and evaluations instead of collapsing operational truth into one giant state object.
+TSAL release versions and individual schema versions are intentionally independent. Legacy schema blobs are preserved under [`schemas/legacy/`](./schemas/legacy/) so older project sockets remain auditable without rewriting history.
 
 ## Integration boundaries
 
@@ -136,10 +197,14 @@ TSAL/
 ├── AUTOMATION-CONTRACT.schema.json
 ├── FAILURE-TEST-MATRIX.md
 ├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── CONFORMANCE-MODEL.md
+│   ├── RETRY-MODEL.md
 │   └── VERSIONING.md
 ├── evidence/
 ├── interfaces/
 ├── schemas/
+│   └── legacy/
 ├── templates/
 ├── tooling/
 ├── test/
@@ -164,27 +229,30 @@ TSAL/
 13. **AI assists; deterministic controls enforce.**
 14. **TSAL core stays consumer-neutral.** New systems attach through interfaces.
 15. **Canonical TSAL changes are versioned.** Repository changes beyond version metadata MUST increase the TSAL release version.
+16. **Evidence classes are not interchangeable.** A lower truth layer cannot silently prove a higher one.
+17. **Conformance is not authority.** Passing an audit does not itself grant production execution authority.
 
 ## Risk classes
 
 | Class | Typical consequence | Direction |
 |---|---|---|
 | R0 | Read-only | validation, observability |
-| R1 | Local/reversible mutation | state, rollback |
-| R2 | External/reversible mutation | authority, idempotency, bounded retry/reconciliation |
-| R3 | Public, financial, destructive, security-sensitive, difficult-to-reverse | strong preflight, adversarial testing, evidence, recovery, owner-reserved boundaries |
+| R1 | Local/reversible mutation | state, rollback, implementation evidence |
+| R2 | External/reversible mutation | authority, idempotency, bounded retry/reconciliation, runtime evidence |
+| R3 | Public, financial, destructive, security-sensitive, difficult-to-reverse | exact-candidate, deployment, runtime, recovery, owner-reserved boundaries |
 
 ## XQueue
 
 XQueue is the first reference workload, not a dependency. [`references/xqueue/LESSONS-LEARNED.md`](./references/xqueue/LESSONS-LEARNED.md) records which lessons were promoted and which implementation choices stayed project-specific.
 
-The 0.2.1 hardening release was driven by XQueue dogfooding: declared paths are now mechanically checked, generated project sockets are complete and Git-trackable, and release version changes are enforced rather than remembered manually.
+XQueue dogfooding drove both 0.2.1 and 0.3.0:
+
+- 0.2.1: declared-path validation, complete Git-trackable project sockets, and enforced release versioning.
+- 0.3.0: configuration-vs-runtime evidence separation, claim-level conformance, backward-compatible legacy audit, and separated retry semantics.
 
 ## Versioning
 
 See [`docs/VERSIONING.md`](./docs/VERSIONING.md) for the enforced release policy and [`CHANGELOG.md`](./CHANGELOG.md) for release history.
-
-TSAL release versions and individual schema versions are intentionally independent. A patch release can harden tooling without changing schema contracts.
 
 ## Evolution rule
 
