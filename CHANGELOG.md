@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.3.4 — Privileged-admission and terminology hardening
+
+This patch release strengthens the 0.3.3 control-plane/workload boundary after red/blue-team review of the operating-system/kernel analogy. It makes authority-critical terminology explicit and separates discretionary control-plane reasoning from deterministic privileged admission without making TOS or any specific kernel implementation a TSAL dependency.
+
+### Added
+
+- Normative `docs/TERMINOLOGY.md` defining TSAL, workload, control plane, kernel/privileged-admission boundary, userland, adapter, capability, authority, credential, privileged action, bounded action, observation, UNKNOWN, reconciliation, evidence, verification, exact candidate, repair, recovery, adoption, escalation, and override.
+- Generic consumer-kernel rule: a control plane claiming autonomous privileged execution must separate discretionary reasoning from deterministic protected-action admission where policy can be mechanically evaluated.
+- Explicit non-bypass semantics for privileged admission: denial cannot be converted into authority by calling an alternate TOS-managed adapter/tool path.
+- Explicit implementation-truth rule separating target architecture from implemented/proven controls.
+
+### Changed
+
+- Architecture now distinguishes TSAL from both control-plane userland and a consumer-side privileged-admission/kernel boundary.
+- Integration guidance separates read-only observation from protected mutation and requires capability/authority context for privileged execution.
+- Adapter contract now distinguishes credentials from authority, preserves provider replacement/omission semantics, prevents environment identity collapse, and requires reconciliation when command success cannot prove external state.
+- Control-plane protocol now distinguishes registration, visibility, conformance, approval, capability grant, execution authorization, action admission, execution, and verification.
+- Repository verification now requires the normative terminology artifact.
+- README fundamental rules now include credential/authority separation, observation/mutation separation, non-bypassable privileged admission, deterministic-policy precedence over AI confidence, additive override evidence, and target-vs-implementation truth.
+
+### Compatibility
+
+- TSAL release version advances to `0.3.4`.
+- Project manifest remains schema `0.3`.
+- Automation contract remains schema `0.2`.
+- Evidence and conformance report remain schema `0.3`.
+- Incident schema remains `0.2`.
+- No new backend, AI, provider, TOS, or kernel runtime dependency is introduced.
+- Existing workloads are not automatically modified by this release.
+- This release strengthens normative semantics without adding a new machine-readable conformance claim; a future minor release may add additional mechanically enforceable privileged-admission declarations if operational evidence justifies them.
+
 ## 0.3.3 — Control-plane/workload boundary
 
 This patch release codifies the architectural model validated by XQueue 1.1.0 and establishes the responsibility boundary future TOS work must build around.
