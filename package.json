@@ -1,6 +1,6 @@
 {
   "name": "@topshelf/tsal",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "description": "Top Shelf Automation Lifecycle standard and local-first conformance tooling",
   "type": "module",
@@ -9,9 +9,10 @@
   },
   "scripts": {
     "doctor": "node tooling/cli.mjs doctor .",
+    "audit": "node tooling/cli.mjs audit .",
     "test": "node --test",
     "version:check": "node tooling/version-policy.mjs sync",
-    "verify": "node tooling/version-policy.mjs sync && node tooling/verify-repo.mjs && node tooling/cli.mjs doctor . && node tooling/cli.mjs doctor examples/r0-readonly && node --test"
+    "verify": "node tooling/version-policy.mjs sync && node tooling/verify-repo.mjs && node tooling/cli.mjs doctor . && node tooling/cli.mjs audit . --strict && node tooling/cli.mjs doctor examples/r0-readonly && node tooling/cli.mjs audit examples/r0-readonly --strict && node --test"
   },
   "engines": {
     "node": ">=22"
