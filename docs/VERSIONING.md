@@ -33,8 +33,8 @@ This rule intentionally favors explicit release history over silent mutation of 
 
 Use the smallest semantic version increase that truthfully describes the compatibility impact:
 
-- PATCH (`0.3.2` -> `0.3.3`): bug fixes, hardening, stronger validation, documentation corrections/clarifications, regression tests, and backward-compatible tooling improvements.
-- MINOR (`0.3.x` -> `0.4.0`): backward-compatible new capabilities, new conformance concepts, new commands, or material contract-model extensions.
+- PATCH (`0.3.3` -> `0.3.4`): bug fixes, hardening, stronger validation, documentation corrections/clarifications, regression tests, and backward-compatible tooling/interface policy improvements that do not change machine-readable schema compatibility.
+- MINOR (`0.3.x` -> `0.4.0`): backward-compatible new capabilities, new conformance concepts, new commands, or material machine-readable contract-model extensions.
 - MAJOR: incompatible changes to stable TSAL contracts or guarantees once TSAL reaches a maturity level where those guarantees are declared stable.
 
 ## TSAL version is not schema version
@@ -43,10 +43,10 @@ TSAL release version and artifact schema versions are independent.
 
 A TSAL patch may improve tooling or clarify normative architecture without changing a schema. A schema data-contract change MUST update that schema's own version/compatibility declaration.
 
-Current 0.3.3 release:
+Current 0.3.4 release:
 
 ```text
-TSAL release                 0.3.3
+TSAL release                 0.3.4
 Project manifest schema      0.3
 Automation contract schema   0.2
 Evidence schema              0.3
@@ -55,6 +55,14 @@ Incident schema              0.2
 ```
 
 Legacy schemas remain under `schemas/legacy/`. Compatibility support does not allow an older schema to prove requirements that did not exist in that version.
+
+## Architecture terminology versus implementation
+
+TSAL terminology may define a semantic control such as `privileged admission`, `kernel mediation`, or a control-plane `kernel` equivalent without requiring every project to implement an operating-system kernel.
+
+A control-plane implementation MAY use different names if it preserves the normative semantics. A terminology/architecture clarification does not automatically create a new workload release or prove that a target control is implemented.
+
+Implementation evidence remains separate from specification evidence.
 
 ## Standard version versus workload version
 
@@ -93,6 +101,8 @@ Detection of a newer TSAL release MAY be automated by TOS, CI, or another consum
 Restoring already-approved external/runtime state to the exact declared configuration is not inherently a software version change. For example, repairing provider drift to an existing approved cron or deployment may be an operational repair if no repository candidate changes.
 
 If the repair requires committed code/configuration changes, it becomes a new workload candidate and follows project versioning and release policy.
+
+Repair authority is still authority: classifying an operation as repair does not exempt a protected mutation from the applicable capability, privileged-admission, evidence, or verification requirements.
 
 ## Candidate rule
 

@@ -1,12 +1,14 @@
 # TSAL Architecture
 
-Status: foundation v0.3.3
+Status: foundation v0.3.4
 
 TSAL is structured as a layered automation engineering system. The standard remains technology-agnostic; executable tooling and integrations are replaceable implementations around that standard.
 
+Normative architecture and authority terms are defined in [`TERMINOLOGY.md`](./TERMINOLOGY.md).
+
 ## Architectural objective
 
-TSAL MUST be usable locally with no backend, no AI service, and no control plane. It MUST also expose stable machine-readable boundaries so projects, CI systems, AI assistants, and a future operating system such as TOS can consume the same facts without rewriting the standard.
+TSAL MUST be usable locally with no backend, no AI service, and no control plane. It MUST also expose stable machine-readable boundaries so projects, CI systems, AI assistants, and an operating system such as TOS can consume the same facts without rewriting the standard.
 
 ## Constitutional boundary
 
@@ -19,25 +21,74 @@ OWNER / ORGANIZATION POLICY
             │
             ▼
       CONTROL PLANE (TOS)
-   observe → decide → execute
-          → verify → escalate
-        │                │
-        │ consumes       │ invokes bounded
-        ▼                ▼
-   TSAL interfaces     WORKLOADS
- rules/contracts/proof  XQueue / Teach / future
-        ▲                │
-        └──── facts/evidence/actions ────┘
+   observe → diagnose → plan
+            │
+            ├── consumes TSAL rules/contracts/proof
+            │
+            ▼
+ privileged-admission boundary
+   deterministic allow / deny
+            │
+     admitted bounded action
+            ▼
+          WORKLOAD
+      facts/evidence/outcomes
+            │
+            └──────────────► control plane
 ```
+
+This is a responsibility model, not a runtime call chain through TSAL.
 
 The following are architecture invariants:
 
 1. **TSAL is not runtime middleware.** A workload MUST NOT require a live TSAL service or TOS service in order to execute its already-approved local/runtime safety controls.
 2. **TOS is not part of TSAL core.** TOS consumes TSAL through neutral interfaces and MAY be replaced without changing TSAL core guarantees.
 3. **Workloads remain independently safe.** Loss of TOS or TSAL availability MUST NOT expand a workload's authority or disable its fail-closed local controls.
-4. **Control-plane autonomy is policy-bounded.** TOS MAY automate observation, diagnosis, repair, verification, and escalation only within authority explicitly represented by contracts/policy.
+4. **Control-plane autonomy is policy-bounded.** A control plane MAY automate observation, diagnosis, repair, verification, and escalation only within authority explicitly represented by contracts/policy.
 5. **A standard release does not silently mutate a workload.** A new TSAL release MAY trigger compatibility assessment, but adoption by a workload is an explicit candidate change subject to that workload's own versioning, tests, evidence, and release policy.
-6. **Reusable rules move upward; domain behavior stays downward.** Cross-project governance belongs in TSAL/TOS. Project-specific publication, application, database, or domain behavior remains in the workload.
+6. **Reusable rules move upward; domain behavior stays downward.** Cross-project governance belongs in TSAL/control-plane policy. Project-specific publication, application, database, or domain behavior remains in the workload.
+7. **Credentials are not authority.** Provider/tool access MUST NOT be treated as a capability grant.
+8. **UNKNOWN is first-class.** Missing or contradictory evidence MUST NOT be coerced to PASS to keep automation moving.
+9. **Evidence is additive.** Repair, recovery, retry, supersession, and override MUST NOT erase the original observation, denial, failure, or ambiguity.
+10. **Implementation truth is explicit.** Intended architecture MUST NOT be presented as implemented/proven behavior without corresponding code and evidence.
+
+## Control-plane reasoning versus privileged admission
+
+TSAL does not mandate a particular operating-system implementation or the word `kernel`. It does require a stronger boundary when a consumer claims autonomous privileged execution.
+
+A control plane may contain discretionary userland behavior such as AI agents, planners, schedulers, orchestration, UI, and diagnosis. Those components MAY observe, reason, and propose actions.
+
+For a **privileged action** whose authority/safety conditions can be mechanically evaluated, the final admission decision SHOULD be deterministic. For R3 privileged actions, deterministic admission is REQUIRED where mechanically evaluable controls exist.
+
+The control path is:
+
+```text
+observe / reason / propose
+          ↓
+deterministic privileged admission
+    ├─ deny / reserved / UNKNOWN → preserve evidence → escalate
+    └─ allow
+         ↓
+   bounded execution
+         ↓
+      evidence
+         ↓
+independent verification when required
+```
+
+A consumer may implement this as a kernel, admission controller, policy engine, capability gate, or equivalent. The implementation name is not normative. The semantics are:
+
+- caller identity and requested capability are explicit;
+- authority source is explicit and separate from credentials;
+- target/scope and protected state are explicit;
+- reserved actions remain reserved;
+- leases/fencing/concurrency and retry/repair budgets are enforced where required;
+- bypass through another adapter/tool does not convert denial into authority;
+- fail-closed and escalation behavior is explicit;
+- evidence is protected and linked to the exact action/candidate;
+- verification requirements are satisfied before promotion/closure.
+
+AI MAY propose or explain the admission result. AI MUST NOT replace a deterministic denial with discretionary confidence.
 
 ## Planes
 
@@ -80,6 +131,7 @@ Canonical, normative rules. This is the slowest-changing layer.
 Contains:
 - lifecycle;
 - normative invariants;
+- controlled terminology;
 - risk classes;
 - failure semantics;
 - authority and recovery expectations;
@@ -121,15 +173,15 @@ Incidents capture failures, ambiguity, containment, root cause, recovery, and ca
 
 Adapters translate project-local or provider-specific facts into TSAL's neutral contracts.
 
-Adapters MAY connect GitHub, CI, cloud providers, databases, schedulers, observability systems, or future TOS services. Adapter failure MUST NOT silently mutate TSAL truth.
+Adapters MAY connect GitHub, CI, cloud providers, databases, schedulers, observability systems, or future TOS services. Adapter failure MUST NOT silently mutate TSAL truth. A write-capable adapter MUST NOT invent authority merely because credentials exist.
 
 ### 7. Optional Control Plane
 
 A control plane can aggregate many TSAL-aware projects, but it is not required for TSAL conformance or workload runtime safety.
 
-A future TOS integration belongs here. TOS can consume manifests, conformance reports, evidence, incidents, declared repair primitives, and compatibility information while remaining independent from TSAL core.
+A TOS integration belongs here. TOS can consume manifests, conformance reports, evidence, incidents, declared repair primitives, and compatibility information while remaining independent from TSAL core.
 
-TOS MAY automate lifecycle operations around a workload, but it MUST NOT become an undeclared authority source. If a workload cannot prove a requested action is within its contract and TOS policy, the action must fail closed or escalate.
+A control plane MAY automate lifecycle operations around a workload, but it MUST NOT become an undeclared authority source. If a requested privileged action cannot prove sufficient capability/authority/scope, the action must fail closed or escalate.
 
 ## Dependency direction
 
@@ -151,6 +203,8 @@ TSAL core -> AI provider
 TSAL core -> Cloudflare
 TSAL core -> project implementation
 workload runtime -> live TOS/TSAL service as a prerequisite for local safety
+credential possession -> inferred execution authority
+control-plane discretionary reasoning -> bypass of mechanically required privileged admission
 ```
 
 This prevents the standard from becoming captive to one operating system or vendor and prevents workloads from becoming unsafe when the control plane is unavailable.
@@ -209,7 +263,7 @@ Is the current workload broken?
               └─ no → leave the workload alone
 
 Does the reusable rule require autonomous cross-project action?
-  ├─ yes → TOS consumes/enforces it through TSAL interfaces
+  ├─ yes → control plane coordinates; deterministic admission enforces privileged authority
   └─ no → TSAL rule/tooling only
 ```
 
