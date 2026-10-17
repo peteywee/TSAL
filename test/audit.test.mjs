@@ -285,3 +285,17 @@ test('CLI equals syntax is bound and unknown or malformed options fail closed', 
     const result = run(...args); assert.notEqual(result.status, 0, args.join(' '));
   }
 });
+
+
+test('partial and non-immutable identities cannot hide unresolved evidence; tied FAIL wins', () => {
+  const candidate = { type: 'git_commit', id: 'exact-candidate', immutable: true };
+  for (const identity of [{}, { id: 'x' }, { type: 'git_commit', id: 'x', immutable: false }, { type: '', id: 'x', immutable: true }]) {
+    const root = makeProject(); completeEvidence(root, candidate);
+    const record = JSON.parse(fs.readFileSync(path.join(root, 'evidence', 'ev-deployment-authority-deployment.json'), 'utf8'));
+    record.evidence_id = 'unresolved'; record.candidate = identity; record.result = 'fail'; record.produced_at = '2026-09-06T20:00:00Z';
+    writeText(path.join(root, 'evidence', 'unresolved.json'), JSON.stringify(record));
+    const unknown = { ...record, evidence_id: 'unknown', result: 'unknown' };
+    writeText(path.join(root, 'evidence', 'a-unknown.json'), JSON.stringify(unknown));
+    assert.equal(auditProject(root, { candidate }).result, 'blocking');
+  }
+});
