@@ -1,6 +1,6 @@
 {
   "schema_version": "0.3",
-  "tsal_version": "0.3.4",
+  "tsal_version": "0.3.5",
   "project": {
     "id": "topshelf.tsal",
     "name": "TSAL",
