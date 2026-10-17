@@ -93,7 +93,7 @@ function makeProject({ manifestSchema = '0.3', tsalVersion = '0.3.0', contractSc
   return root;
 }
 
-function writeEvidence(root, { suffix, evidenceClass, result = 'pass', producedAt = '2026-09-05T20:00:00Z', validUntil = null }) {
+function writeEvidence(root, { suffix, evidenceClass, result = 'pass', producedAt = '2026-09-05T20:00:00Z', validUntil = null, candidate = null }) {
   const evidenceId = `ev-${suffix.replace(/\./g, '-')}-${evidenceClass}`;
   const record = {
     schema_version: '0.3',
@@ -101,7 +101,7 @@ function writeEvidence(root, { suffix, evidenceClass, result = 'pass', producedA
     project_id: 'test.r3',
     automation_id: 'test.publisher',
     tsal_version: '0.3.0',
-    candidate: null,
+    candidate,
     produced_at: producedAt,
     valid_until: validUntil,
     claim_id: `test.publisher.${suffix}`,
@@ -170,7 +170,7 @@ test('expired runtime evidence does not prove current runtime safety', () => {
   writeEvidence(root, { suffix: 'ambiguity.fail_closed', evidenceClass: 'candidate' });
   writeEvidence(root, { suffix: 'recovery.verified', evidenceClass: 'candidate' });
   writeEvidence(root, { suffix: 'deployment.authority', evidenceClass: 'deployment' });
-  writeEvidence(root, { suffix: 'runtime.safe', evidenceClass: 'runtime', validUntil: '2020-01-01T00:00:00Z' });
+  writeEvidence(root, { suffix: 'runtime.safe', evidenceClass: 'runtime', producedAt: '2019-12-31T00:00:00Z', validUntil: '2020-01-01T00:00:00Z' });
 
   const report = auditProject(root);
   assert.equal(report.result, 'partial');
@@ -187,4 +187,101 @@ test('malformed declared evidence paths fail closed instead of being traversed',
   const report = auditProject(root);
   assert.equal(report.result, 'blocking');
   assert.ok(report.blocking_findings.some((finding) => finding.includes('parent segments')));
+});
+
+function completeEvidence(root, candidate, producedAt = '2026-09-05T20:00:00Z') {
+  for (const [suffix, evidenceClass] of [
+    ['authority.enforced', 'candidate'], ['retry.bounded', 'implementation'],
+    ['ambiguity.fail_closed', 'candidate'], ['recovery.verified', 'reconciliation'],
+    ['runtime.safe', 'runtime'], ['deployment.authority', 'deployment']
+  ]) writeEvidence(root, { suffix, evidenceClass, candidate, producedAt });
+}
+
+test('F6: future observations cannot produce PROVEN or strict success', () => {
+  const root = makeProject();
+  completeEvidence(root, { type: 'git_commit', id: 'old', immutable: true }, '2099-01-01T00:00:00Z');
+  const report = auditProject(root);
+  assert.equal(report.result, 'blocking');
+  assert.equal(auditExitCode(report, true), 1);
+  assert.ok(report.blocking_findings.some(f => /in the future/.test(f)));
+});
+
+test('an explicit matching immutable candidate supports bound acceptance', () => {
+  const root = makeProject();
+  const candidate = { type: 'git_commit', id: 'exact-candidate', immutable: true };
+  completeEvidence(root, candidate);
+  const report = auditProject(root, { candidate });
+  assert.equal(report.result, 'proven');
+  assert.equal(report.candidate, candidate.id); // Preserve conformance schema string/null.
+  assert.equal(auditExitCode(report, true), 0);
+  assert.equal(report.warnings.some(w => /No candidate target/.test(w)), false);
+});
+
+test('wrong, missing, non-immutable and wrong-type candidate evidence cannot prove a requested target', () => {
+  const expected = { type: 'git_commit', id: 'exact-candidate', immutable: true };
+  for (const candidate of [null, { ...expected, id: 'old' }, { ...expected, immutable: false }, { ...expected, type: 'other' }]) {
+    const root = makeProject(); completeEvidence(root, candidate);
+    const report = auditProject(root, { candidate: expected });
+    assert.notEqual(report.result, 'proven');
+    assert.notEqual(auditExitCode(report, true), 0);
+  }
+});
+
+test('unbound audits disclose the absence of exact-candidate acceptance', () => {
+  const report = auditProject(makeProject());
+  assert.equal(report.candidate, null);
+  assert.ok(report.warnings.some(w => /not exact-candidate acceptance/.test(w)));
+  assert.throws(() => auditProject(makeProject(), { candidate: { id: 'x' } }), /immutable candidate/);
+});
+
+test('candidate CLI options bind JSON output and cannot consume the project path', () => {
+  const root = makeProject();
+  const candidate = { type: 'git_commit', id: 'exact-candidate', immutable: true };completeEvidence(root, candidate);
+  const good = spawnSync(process.execPath, [cli, 'audit', '--candidate', candidate.id, root, '--json', '--strict'], { encoding: 'utf8' });
+  assert.equal(good.status, 0, good.stderr);
+  assert.equal(JSON.parse(good.stdout).candidate, candidate.id);
+  for (const args of [['--candidate'], ['--candidate-type', 'other'], ['--candidate', 'a', '--candidate', 'b']]) {
+    const result = spawnSync(process.execPath, [cli, 'audit', root, ...args], { encoding: 'utf8' });
+    assert.notEqual(result.status, 0);
+  }
+});
+
+
+test('malformed timestamps and contradictory expiry fail closed', () => {
+  for (const producedAt of [false, 0, [], ['2026-09-05T20:00:00Z'], '2026-09-05', '2026-02-30T10:00:00Z', '2026-01-01T24:00:00Z']) {
+    const root = makeProject(); completeEvidence(root, null, producedAt);
+    assert.equal(auditProject(root).result, 'blocking', JSON.stringify(producedAt));
+  }
+  for (const validUntil of [false, 0, [], '', '2026-02-30T10:00:00Z', '2025-01-01T00:00:00Z']) {
+    const root = makeProject();
+    writeEvidence(root, { suffix: 'runtime.safe', evidenceClass: 'runtime', validUntil });
+    assert.equal(auditProject(root).result, 'blocking', JSON.stringify(validUntil));
+  }
+});
+
+test('candidate selection preserves newer or tied unbound non-PASS evidence', () => {
+  const candidate = { type: 'git_commit', id: 'exact-candidate', immutable: true };
+  for (const result of ['fail', 'unknown', 'informational']) {
+    for (const producedAt of ['2026-09-06T20:00:00Z', '2026-09-05T20:00:00Z']) {
+      const root = makeProject(); completeEvidence(root, candidate);
+      const recordPath = path.join(root, 'evidence', 'ev-deployment-authority-deployment.json');
+      const record = JSON.parse(fs.readFileSync(recordPath, 'utf8'));
+      record.evidence_id = 'unbound-deployment'; record.candidate = null; record.result = result; record.produced_at = producedAt;
+      writeText(path.join(root, 'evidence', 'unbound.json'), JSON.stringify(record));
+      const report = auditProject(root, { candidate });
+      assert.notEqual(report.result, 'proven', `${result}/${producedAt}`);
+      assert.notEqual(auditExitCode(report, true), 0);
+    }
+  }
+});
+
+test('CLI equals syntax is bound and unknown or malformed options fail closed', () => {
+  const root = makeProject();
+  completeEvidence(root, { type: 'git_commit', id: 'exact-candidate', immutable: true });
+  const run = (...args) => spawnSync(process.execPath, [cli, 'audit', root, '--json', '--strict', ...args], { encoding: 'utf8' });
+  const good = run('--candidate=exact-candidate', '--candidate-type=git_commit');
+  assert.equal(good.status, 0, good.stderr); assert.equal(JSON.parse(good.stdout).candidate, 'exact-candidate');
+  for (const args of [['--candidate=wrong'], ['--candidate=exact-candidate', '--candidate-type=artifact'], ['--candidate='], ['--candidate', ''], ['--candidate=x', '--candidate', 'y'], ['--canddate=x'], ['--candidate-type=git_commit'], ['--strict=true']]) {
+    const result = run(...args); assert.notEqual(result.status, 0, args.join(' '));
+  }
 });
