@@ -1,6 +1,6 @@
 {
   "name": "@topshelf/tsal",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "private": true,
   "description": "Top Shelf Automation Lifecycle standard and local-first conformance tooling",
   "type": "module",
