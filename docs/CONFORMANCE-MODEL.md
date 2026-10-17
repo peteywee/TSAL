@@ -95,7 +95,16 @@ For a claim, `tsal audit` selects the latest non-expired evidence record from a 
 - latest `unknown` or `informational` -> `UNPROVEN`
 - no qualifying evidence -> `UNPROVEN`
 
-A `valid_until` timestamp can bound runtime/deployment evidence freshness. Expired evidence does not prove a current claim.
+A `valid_until` timestamp can bound runtime/deployment evidence freshness. Expired evidence does not prove a current claim. Future `produced_at` observations are invalid evidence and make the audit BLOCKING; they must not override current observations. The evaluator captures its current clock once per audit.
+
+For exact-candidate acceptance, request an explicit immutable candidate. Every behavioral proof must then identify the same candidate type and ID with `immutable: true`; missing or mismatched bindings cannot prove that target. Without a requested candidate, the report retains `candidate: null` and warns that it is not exact-candidate acceptance. Historical unbound evidence remains readable.
+
+```bash
+node tooling/cli.mjs audit ./project --strict --candidate EXACT_SHA
+node tooling/cli.mjs audit ./project --strict --candidate ARTIFACT_ID --candidate-type artifact
+```
+
+The API accepts `auditProject(target, { candidate: { type, id, immutable: true } })`. The report's existing candidate string field contains the requested ID; schemas are unchanged. Source authenticity, expected environment and permission/admission controls still require workload evidence and policy. Candidate binding does not grant authority.
 
 ## Legacy records
 
