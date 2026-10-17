@@ -144,6 +144,14 @@ function evidenceTime(record) {
   return Number.isFinite(value) ? value : 0;
 }
 
+function hasImmutableIdentity(candidate) {
+  return candidate?.immutable === true && typeof candidate.type === 'string' && !!candidate.type.trim() && typeof candidate.id === 'string' && !!candidate.id.trim();
+}
+
+function evidenceResultRank(result) {
+  return result === 'fail' ? 0 : result === 'pass' ? 2 : 1;
+}
+
 function currentEvidence(records, automationId, claimId, allowedClasses, now, candidate) {
   return records
     .filter((record) => !record._legacy)
@@ -153,8 +161,8 @@ function currentEvidence(records, automationId, claimId, allowedClasses, now, ca
     .filter((record) => !record.valid_until || Date.parse(record.valid_until) >= now)
     // Unbound non-PASS evidence can invalidate a target's older PASS. A target
     // filter must not silently erase an unresolved deployment/runtime failure.
-    .filter((record) => !candidate || (record.candidate?.id === candidate.id && record.candidate?.type === candidate.type && record.candidate?.immutable === true) || (record.candidate == null && record.result !== 'pass'))
-    .sort((a, b) => evidenceTime(b) - evidenceTime(a) || Number(a.result === 'pass') - Number(b.result === 'pass'))[0] ?? null;
+    .filter((record) => !candidate || (record.candidate?.id === candidate.id && record.candidate?.type === candidate.type && record.candidate?.immutable === true) || (!hasImmutableIdentity(record.candidate) && record.result !== 'pass'))
+    .sort((a, b) => evidenceTime(b) - evidenceTime(a) || evidenceResultRank(a.result) - evidenceResultRank(b.result))[0] ?? null;
 }
 
 function evidenceCheck(records, automationId, claimSuffix, requirement, allowedClasses, context) {
