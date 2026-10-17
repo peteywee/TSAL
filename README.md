@@ -6,7 +6,7 @@ TSAL is a local-first, technology-agnostic automation engineering standard with 
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-Current version: **0.3.4 — privileged-admission and terminology hardening**
+Current version: **0.3.5 — evidence chronology and exact-candidate audit hardening**
 
 ## Architecture
 
