@@ -51,7 +51,21 @@ function isTsalEvidenceCandidate(record) {
   );
 }
 
-function loadEvidence(project) {
+// Date.parse accepts coercions and calendar rollover; evidence requires an actual
+// RFC3339 instant with a valid calendar date and explicit timezone.
+function timestamp(value) {
+  if (typeof value !== 'string') return NaN;
+  const match = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|([+-])(\d{2}):(\d{2}))$/.exec(value);
+  if (!match) return NaN;
+  const [, y, m, d, h, min, sec, , offsetH, offsetM] = match;
+  const year = Number(y), month = Number(m), day = Number(d);
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (month < 1 || month > 12 || day < 1 || day > days[month - 1] || Number(h) > 23 || Number(min) > 59 || Number(sec) > 59 || Number(offsetH ?? 0) > 23 || Number(offsetM ?? 0) > 59) return NaN;
+  return Date.parse(value);
+}
+
+function loadEvidence(project, now) {
   const records = [];
   const errors = [];
   const warnings = [];
@@ -102,11 +116,16 @@ function loadEvidence(project) {
     if (record?.result && !['pass', 'fail', 'unknown', 'informational'].includes(record.result)) {
       recordErrors.push(`evidence ${relative} has invalid result ${record.result}`);
     }
-    if (record?.produced_at && !Number.isFinite(Date.parse(record.produced_at))) {
-      recordErrors.push(`evidence ${relative} has invalid produced_at ${record.produced_at}`);
+    const producedAt = timestamp(record?.produced_at);
+    if (!Number.isFinite(producedAt)) {
+      recordErrors.push(`evidence ${relative} has invalid produced_at ${String(record?.produced_at)}`);
+    } else if (producedAt > now) {
+      recordErrors.push(`evidence ${relative} produced_at is in the future: ${record.produced_at}`);
     }
-    if (record?.valid_until && !Number.isFinite(Date.parse(record.valid_until))) {
-      recordErrors.push(`evidence ${relative} has invalid valid_until ${record.valid_until}`);
+    if (record?.valid_until !== undefined && record.valid_until !== null) {
+      const validUntil = timestamp(record.valid_until);
+      if (!Number.isFinite(validUntil)) recordErrors.push(`evidence ${relative} has invalid valid_until ${String(record.valid_until)}`);
+      else if (validUntil < producedAt) recordErrors.push(`evidence ${relative} valid_until precedes produced_at`);
     }
 
     if (recordErrors.length) {
@@ -125,20 +144,22 @@ function evidenceTime(record) {
   return Number.isFinite(value) ? value : 0;
 }
 
-function currentEvidence(records, automationId, claimId, allowedClasses) {
-  const now = Date.now();
+function currentEvidence(records, automationId, claimId, allowedClasses, now, candidate) {
   return records
     .filter((record) => !record._legacy)
     .filter((record) => record.automation_id === automationId)
     .filter((record) => record.claim_id === claimId)
     .filter((record) => allowedClasses.includes(record.evidence_class))
     .filter((record) => !record.valid_until || Date.parse(record.valid_until) >= now)
-    .sort((a, b) => evidenceTime(b) - evidenceTime(a))[0] ?? null;
+    // Unbound non-PASS evidence can invalidate a target's older PASS. A target
+    // filter must not silently erase an unresolved deployment/runtime failure.
+    .filter((record) => !candidate || (record.candidate?.id === candidate.id && record.candidate?.type === candidate.type && record.candidate?.immutable === true) || (record.candidate == null && record.result !== 'pass'))
+    .sort((a, b) => evidenceTime(b) - evidenceTime(a) || Number(a.result === 'pass') - Number(b.result === 'pass'))[0] ?? null;
 }
 
-function evidenceCheck(records, automationId, claimSuffix, requirement, allowedClasses) {
+function evidenceCheck(records, automationId, claimSuffix, requirement, allowedClasses, context) {
   const claimId = `${automationId}.${claimSuffix}`;
-  const record = currentEvidence(records, automationId, claimId, allowedClasses);
+  const record = currentEvidence(records, automationId, claimId, allowedClasses, context.now, context.candidate);
 
   if (!record) {
     return check(claimId, requirement, 'unproven', {
@@ -169,7 +190,7 @@ function evidenceCheck(records, automationId, claimSuffix, requirement, allowedC
   });
 }
 
-function contractChecks(entry, evidence) {
+function contractChecks(entry, evidence, context) {
   const { automation, contract } = entry;
   const id = automation.id;
   const risk = contract?.risk?.class ?? automation?.risk ?? null;
@@ -260,29 +281,29 @@ function contractChecks(entry, evidence) {
   }
 
   if (['R1', 'R2', 'R3'].includes(risk)) {
-    checks.push(evidenceCheck(evidence, id, 'authority.enforced', 'Implementation/candidate evidence proves that execution authority is enforced.', ['implementation', 'candidate']));
-    checks.push(evidenceCheck(evidence, id, 'retry.bounded', 'Implementation/candidate evidence proves retry behavior is bounded and policy-conformant.', ['implementation', 'candidate']));
+    checks.push(evidenceCheck(evidence, id, 'authority.enforced', 'Implementation/candidate evidence proves that execution authority is enforced.', ['implementation', 'candidate'], context));
+    checks.push(evidenceCheck(evidence, id, 'retry.bounded', 'Implementation/candidate evidence proves retry behavior is bounded and policy-conformant.', ['implementation', 'candidate'], context));
   } else {
     checks.push(check(`${id}.authority.enforced`, 'Implementation authority evidence.', 'not_applicable'));
     checks.push(check(`${id}.retry.bounded`, 'Implementation retry evidence.', 'not_applicable'));
   }
 
   if (ambiguityPossible) {
-    checks.push(evidenceCheck(evidence, id, 'ambiguity.fail_closed', 'Implementation/candidate evidence proves ambiguous external outcomes fail closed.', ['implementation', 'candidate']));
+    checks.push(evidenceCheck(evidence, id, 'ambiguity.fail_closed', 'Implementation/candidate evidence proves ambiguous external outcomes fail closed.', ['implementation', 'candidate'], context));
   } else {
     checks.push(check(`${id}.ambiguity.fail_closed`, 'Ambiguity implementation evidence.', 'not_applicable'));
   }
 
   if (['R2', 'R3'].includes(risk)) {
-    checks.push(evidenceCheck(evidence, id, 'recovery.verified', 'Candidate or reconciliation evidence proves the documented recovery path works.', ['candidate', 'reconciliation']));
-    checks.push(evidenceCheck(evidence, id, 'runtime.safe', 'Current runtime evidence supports safe operation.', ['runtime']));
+    checks.push(evidenceCheck(evidence, id, 'recovery.verified', 'Candidate or reconciliation evidence proves the documented recovery path works.', ['candidate', 'reconciliation'], context));
+    checks.push(evidenceCheck(evidence, id, 'runtime.safe', 'Current runtime evidence supports safe operation.', ['runtime'], context));
   } else {
     checks.push(check(`${id}.recovery.verified`, 'Recovery evidence.', 'not_applicable'));
     checks.push(check(`${id}.runtime.safe`, 'Runtime safety evidence.', 'not_applicable'));
   }
 
   if (risk === 'R3') {
-    checks.push(evidenceCheck(evidence, id, 'deployment.authority', 'Deployment evidence proves the intended production authority configuration.', ['deployment']));
+    checks.push(evidenceCheck(evidence, id, 'deployment.authority', 'Deployment evidence proves the intended production authority configuration.', ['deployment'], context));
   } else {
     checks.push(check(`${id}.deployment.authority`, 'Production deployment authority evidence.', 'not_applicable'));
   }
@@ -303,12 +324,17 @@ function summarize(checks) {
   return { result, counts };
 }
 
-export function auditProject(target) {
+export function auditProject(target, { candidate = null } = {}) {
+  const now = Date.now();
+  if (candidate !== null && (typeof candidate?.id !== 'string' || !candidate.id.trim() || typeof candidate?.type !== 'string' || !candidate.type.trim() || candidate.immutable !== true)) {
+    throw new TypeError('Expected an explicit immutable candidate with non-empty type and id');
+  }
   const root = path.resolve(target);
   const project = loadProject(root);
   const checks = [];
   const blockingFindings = [];
   const warnings = [...project.warnings];
+  if (!candidate) warnings.push('No candidate target requested; this report is not exact-candidate acceptance.');
 
   if (project.errors.length > 0) {
     for (const error of project.errors) {
@@ -320,7 +346,7 @@ export function auditProject(target) {
   }
 
   const evidence = project.manifest && project.errors.length === 0
-    ? loadEvidence(project)
+    ? loadEvidence(project, now)
     : { records: [], errors: [], warnings: [] };
   warnings.push(...evidence.warnings);
   for (const error of evidence.errors) {
@@ -329,7 +355,7 @@ export function auditProject(target) {
   }
 
   if (project.errors.length === 0) {
-    for (const entry of project.contracts) checks.push(...contractChecks(entry, evidence.records));
+    for (const entry of project.contracts) checks.push(...contractChecks(entry, evidence.records, { now, candidate }));
   }
 
   const { result, counts } = summarize(checks);
@@ -338,8 +364,8 @@ export function auditProject(target) {
     project_id: project.manifest?.project?.id ?? path.basename(root),
     automation_id: null,
     tsal_version: project.manifest?.tsal_version ?? 'unknown',
-    candidate: null,
-    evaluated_at: new Date().toISOString(),
+    candidate: candidate?.id ?? null,
+    evaluated_at: new Date(now).toISOString(),
     evaluator: 'tsal audit',
     result,
     summary: counts,
