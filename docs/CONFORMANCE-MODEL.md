@@ -95,9 +95,9 @@ For a claim, `tsal audit` selects the latest non-expired evidence record from a 
 - latest `unknown` or `informational` -> `UNPROVEN`
 - no qualifying evidence -> `UNPROVEN`
 
-A `valid_until` timestamp can bound runtime/deployment evidence freshness. Expired evidence does not prove a current claim. Future `produced_at` observations are invalid evidence and make the audit BLOCKING; they must not override current observations. The evaluator captures its current clock once per audit.
+A `valid_until` timestamp can bound runtime/deployment evidence freshness. Expired evidence does not prove a current claim. Timestamps must be typed RFC3339 strings with a valid calendar date and explicit timezone; invalid values and expiry before production are BLOCKING. Future `produced_at` observations are invalid evidence and make the audit BLOCKING; they must not override current observations. The evaluator captures its current clock once per audit.
 
-For exact-candidate acceptance, request an explicit immutable candidate. Every behavioral proof must then identify the same candidate type and ID with `immutable: true`; missing or mismatched bindings cannot prove that target. Without a requested candidate, the report retains `candidate: null` and warns that it is not exact-candidate acceptance. Historical unbound evidence remains readable.
+For exact-candidate acceptance, request an explicit immutable candidate. Every behavioral proof must then identify the same candidate type and ID with `immutable: true`; missing or mismatched bindings cannot prove that target. Without a requested candidate, the report retains `candidate: null` and warns that it is not exact-candidate acceptance. Historical unbound evidence remains readable. Newer or simultaneous unbound non-PASS evidence remains applicable and cannot be filtered away to revive an older candidate PASS; simultaneous FAIL wins over UNKNOWN/informational, then PASS. Unbound includes missing, partial, blank or non-immutable candidate identities. A later matching PASS may supersede an older unbound finding. This chronology policy does not verify the authenticity of the claimed resolution.
 
 ```bash
 node tooling/cli.mjs audit ./project --strict --candidate EXACT_SHA
