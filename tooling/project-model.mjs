@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { schemaErrors } from './schema-validation.mjs';
 
 export const SUPPORTED_MANIFEST_SCHEMAS = new Map([
   ['0.2', /^0\.2(?:\.|$)/],
@@ -32,25 +33,7 @@ export function resolveDeclaredPath(root, value) {
 }
 
 export function validateManifestShape(manifest) {
-  const errors = [];
-  const family = SUPPORTED_MANIFEST_SCHEMAS.get(manifest?.schema_version);
-
-  if (!family) {
-    errors.push(`unsupported project manifest schema_version: ${String(manifest?.schema_version)}`);
-  } else if (typeof manifest?.tsal_version !== 'string' || !family.test(manifest.tsal_version)) {
-    errors.push(`tsal_version ${String(manifest?.tsal_version)} does not match project manifest schema family ${manifest.schema_version}`);
-  }
-
-  for (const key of ['id', 'name', 'owner', 'kind']) {
-    if (!manifest?.project?.[key]) errors.push(`project.${key} is required`);
-  }
-  if (!Array.isArray(manifest?.automations)) errors.push('automations must be an array');
-  if (!Array.isArray(manifest?.integration?.adapters)) errors.push('integration.adapters must be an array');
-  if (typeof manifest?.integration?.control_plane?.enabled !== 'boolean') {
-    errors.push('integration.control_plane.enabled must be boolean');
-  }
-
-  return errors;
+  return schemaErrors('manifest', manifest, 'tsal.project.json');
 }
 
 export function validateDeclaredArtifacts(root, manifest) {
@@ -120,8 +103,10 @@ function loadContract(root, automation, errors) {
     return null;
   }
 
-  if (!SUPPORTED_CONTRACT_SCHEMAS.has(contract?.schema_version)) {
-    errors.push(`automation ${automation.id} uses unsupported contract schema_version: ${String(contract?.schema_version)}`);
+  const violations = schemaErrors('contract', contract, automation.contract);
+  if (violations.length) {
+    errors.push(...violations);
+    return null;
   }
   if (contract?.automation?.id && contract.automation.id !== automation.id) {
     errors.push(`automation id mismatch: manifest=${automation.id} contract=${contract.automation.id}`);
@@ -157,6 +142,7 @@ export function loadProject(root) {
   }
 
   errors.push(...validateManifestShape(manifest));
+  if (errors.length) return { root, manifestPath, manifest, contracts: [], errors, warnings };
   errors.push(...validateDeclaredArtifacts(root, manifest));
 
   const contracts = [];
