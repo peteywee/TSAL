@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.6 — 2026-11-20
+
+Validate current and legacy manifests, automation contracts, and evidence against their complete published schemas before conformance evaluation.
+
 ## 0.3.5 — 2026-10-17
 
 - Reject future-dated, malformed or impossible evidence timestamps and contradictory expiry before evidence can establish conformance.
