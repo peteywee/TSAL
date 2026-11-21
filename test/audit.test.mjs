@@ -299,3 +299,46 @@ test('partial and non-immutable identities cannot hide unresolved evidence; tied
     assert.equal(auditProject(root, { candidate }).result, 'blocking');
   }
 });
+
+test('the reviewed read-only contract with seven missing fields and a negative retry limit blocks proof', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tsal-schema-gap-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.cpSync('examples/r0-readonly', root, { recursive: true });
+  const file = path.join(root, 'automation.contract.json');
+  const contract = JSON.parse(fs.readFileSync(file));
+  for (const field of ['automation', 'goal', 'trigger', 'state', 'verification', 'recovery', 'owner_reserved_actions']) {
+    delete contract[field];
+  }
+  contract.retry.dispatch.maximum_retry_attempts = -1;
+  writeText(file, JSON.stringify(contract));
+  const report = auditProject(root);
+  assert.equal(report.result, 'blocking');
+  assert.equal(auditExitCode(report), 1);
+  for (const field of ['automation', 'goal', 'trigger', 'state', 'verification', 'recovery', 'owner_reserved_actions']) {
+    assert.ok(report.blocking_findings.some(finding => finding.includes(`required property '${field}'`)), field);
+  }
+  assert.ok(report.blocking_findings.some(finding => finding.includes('/retry/dispatch/maximum_retry_attempts')));
+});
+
+for (const [name, file, value, expected] of [
+  ['manifest', 'tsal.project.json', manifest => { manifest.project.kind = 'typo'; }, '/project/kind'],
+  ['legacy manifest', 'tsal.project.json', manifest => { manifest.integration.unexpected = true; }, '/integration'],
+  ['legacy contract', 'automation.contract.json', contract => { delete contract.goal; }, "required property 'goal'"],
+  ['conditional contract rule', 'automation.contract.json', contract => { contract.retry.ambiguous_outcome.automatic_retry_allowed = true; }, '/retry/ambiguous_outcome'],
+  ['evidence', 'evidence/ev-runtime-safe-runtime.json', record => { delete record.provenance.source; }, '/provenance'],
+  ['legacy evidence', 'evidence/ev-runtime-safe-runtime.json', record => { record.schema_version = '0.2'; delete record.provenance; }, "required property 'provenance'"]
+]) {
+  test(`audit rejects a schema violation in ${name}`, t => {
+    const legacy = name.startsWith('legacy');
+    const root = makeProject(legacy ? { manifestSchema: '0.2', tsalVersion: '0.2.0', contractSchema: '0.1' } : {});
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    if (file.startsWith('evidence/')) writeEvidence(root, { suffix: 'runtime.safe', evidenceClass: 'runtime' });
+    const target = path.join(root, file);
+    const document = JSON.parse(fs.readFileSync(target, 'utf8'));
+    value(document);
+    writeText(target, JSON.stringify(document));
+    const report = auditProject(root);
+    assert.equal(report.result, 'blocking');
+    assert.ok(report.blocking_findings.some(finding => finding.includes(expected)), report.blocking_findings.join('\n'));
+  });
+}

@@ -6,7 +6,7 @@ TSAL is a local-first, technology-agnostic automation engineering standard with 
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-Current version: **0.3.5 — evidence chronology and exact-candidate audit hardening**
+Current version: **0.3.6 — full input schema validation**
 
 ## Architecture
 
@@ -86,13 +86,14 @@ A future TOS control plane, CI pipeline, AI assistant, or local tool can consume
 No AI or backend is required.
 
 ```bash
+pnpm install --frozen-lockfile
 node tooling/cli.mjs init ./my-automation
 node tooling/cli.mjs doctor ./my-automation
 node tooling/cli.mjs inspect ./my-automation
 node tooling/cli.mjs audit ./my-automation
 node tooling/cli.mjs audit ./my-automation --json
 node tooling/cli.mjs audit ./my-automation --strict
-npm run verify
+pnpm run verify
 ```
 
 `doctor` answers whether the project socket is structurally coherent. `audit` answers what is actually proven.

@@ -18,7 +18,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm run verify
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.3
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run verify
       - name: Enforce TSAL version bump on repository changes
         if: github.event_name == 'pull_request'
         run: node tooling/version-policy.mjs pr "${{ github.event.pull_request.base.sha }}"

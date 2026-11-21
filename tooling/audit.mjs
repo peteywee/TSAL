@@ -2,18 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadProject, resolveDeclaredPath } from './project-model.mjs';
 
-const CURRENT_EVIDENCE_SCHEMA = '0.3';
+import { schemaErrors } from './schema-validation.mjs';
 const LEGACY_EVIDENCE_SCHEMA = '0.2';
-const VALID_EVIDENCE_CLASSES = new Set([
-  'specification',
-  'implementation',
-  'candidate',
-  'deployment',
-  'runtime',
-  'reconciliation',
-  'attestation'
-]);
-
 function check(id, requirement, result, options = {}) {
   return {
     id,
@@ -44,7 +34,7 @@ function listJsonFiles(root) {
 
 function isTsalEvidenceCandidate(record) {
   if (!record || typeof record !== 'object' || Array.isArray(record)) return false;
-  if ([CURRENT_EVIDENCE_SCHEMA, LEGACY_EVIDENCE_SCHEMA].includes(record.schema_version)) return true;
+  if (['0.3', LEGACY_EVIDENCE_SCHEMA].includes(record.schema_version)) return true;
 
   return ['evidence_id', 'claim_id', 'evidence_class'].some((key) =>
     Object.prototype.hasOwnProperty.call(record, key)
@@ -90,31 +80,21 @@ function loadEvidence(project, now) {
     // being falsely treated as malformed TSAL records.
     if (!isTsalEvidenceCandidate(record)) continue;
 
+    const violations = schemaErrors('evidence', record, relative);
+    if (violations.length) {
+      errors.push(...violations);
+      continue;
+    }
+
     if (record?.schema_version === LEGACY_EVIDENCE_SCHEMA) {
       warnings.push(`legacy evidence ${relative} uses schema 0.2 and cannot prove claim-level 0.3 checks without claim_id/evidence_class`);
       records.push({ ...record, _file: relative, _legacy: true });
       continue;
     }
 
-    if (record?.schema_version !== CURRENT_EVIDENCE_SCHEMA) {
-      errors.push(`unsupported evidence schema_version in ${relative}: ${String(record?.schema_version)}`);
-      continue;
-    }
-
     const recordErrors = [];
-    for (const key of ['evidence_id', 'project_id', 'produced_at', 'claim_id', 'claim', 'result', 'evidence_class', 'evidence_type', 'provenance']) {
-      if (record?.[key] === undefined || record?.[key] === null || record?.[key] === '') {
-        recordErrors.push(`evidence ${relative} missing required field ${key}`);
-      }
-    }
     if (record?.project_id && record.project_id !== project.manifest.project.id) {
       recordErrors.push(`evidence ${relative} project_id ${record.project_id} does not match ${project.manifest.project.id}`);
-    }
-    if (record?.evidence_class && !VALID_EVIDENCE_CLASSES.has(record.evidence_class)) {
-      recordErrors.push(`evidence ${relative} has invalid evidence_class ${record.evidence_class}`);
-    }
-    if (record?.result && !['pass', 'fail', 'unknown', 'informational'].includes(record.result)) {
-      recordErrors.push(`evidence ${relative} has invalid result ${record.result}`);
     }
     const producedAt = timestamp(record?.produced_at);
     if (!Number.isFinite(producedAt)) {
