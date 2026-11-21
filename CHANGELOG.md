@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.7 — 2026-11-21
+
+Moved the XQueue retrospective out of the active tree. [Archived reference material](https://github.com/peteywee/TSAL/tree/2ad3e77703a2691e04fdc5935eef1d0f92357e85/references/xqueue).
+
 ## 0.3.6 — 2026-11-20
 
 Validate current and legacy manifests, automation contracts, and evidence against their complete published schemas before conformance evaluation.
