@@ -43,10 +43,10 @@ TSAL release version and artifact schema versions are independent.
 
 A TSAL patch may improve tooling or clarify normative architecture without changing a schema. A schema data-contract change MUST update that schema's own version/compatibility declaration.
 
-Current 0.3.4 release:
+Current 0.3.5 release:
 
 ```text
-TSAL release                 0.3.4
+TSAL release                 0.3.5
 Project manifest schema      0.3
 Automation contract schema   0.2
 Evidence schema              0.3

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.5 — 2026-10-17
+
+- Reject future-dated, malformed or impossible evidence timestamps and contradictory expiry before evidence can establish conformance.
+- Add optional immutable candidate binding to the audit API and CLI; unbound reports explicitly disclose that they do not establish exact-candidate acceptance.
+- Keep machine-readable schemas unchanged, including the report's string/null candidate field.
+- Preserve newer or simultaneous unbound non-PASS findings during candidate filtering.
+- Parse split and equals-style candidate flags explicitly; reject unknown, duplicate or empty options.
+- Add timestamp, matching/mismatched candidate, competing evidence and CLI parsing regressions.
+
+
 ## 0.3.4 — Privileged-admission and terminology hardening
 
 This patch release strengthens the 0.3.3 control-plane/workload boundary after red/blue-team review of the operating-system/kernel analogy. It makes authority-critical terminology explicit and separates discretionary control-plane reasoning from deterministic privileged admission without making TOS or any specific kernel implementation a TSAL dependency.

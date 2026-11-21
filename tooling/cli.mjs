@@ -7,7 +7,8 @@ import { auditExitCode, auditProject, formatAudit } from './audit.mjs';
 import { loadProject, readJson } from './project-model.mjs';
 
 const [command = 'help', ...rest] = process.argv.slice(2);
-const targetArg = rest.find((arg) => !arg.startsWith('--')) ?? '.';
+const candidateFlags = new Set(['--candidate', '--candidate-type']);
+const targetArg = rest.find((arg, index) => !arg.startsWith('--') && !candidateFlags.has(rest[index - 1])) ?? '.';
 const jsonOutput = rest.includes('--json');
 const strictAudit = rest.includes('--strict');
 const toolingDir = path.dirname(fileURLToPath(import.meta.url));
@@ -145,15 +146,37 @@ function policyExitCode(report, root) {
   return resultRank >= minimumRank ? 0 : 2;
 }
 
-function audit(target) {
-  const root = resolveTarget(target);
-  const report = auditProject(root);
+function audit() {
+  const values = {};
+  let target = null;
+  for (let index = 0; index < rest.length; index++) {
+    const arg = rest[index];
+    const [flag, ...inline] = arg.split('=');
+    if (candidateFlags.has(flag)) {
+      if (Object.hasOwn(values, flag)) return fail(`${flag} may only be supplied once`);
+      const value = inline.length ? inline.join('=') : rest[++index];
+      if (!value?.trim() || value.startsWith('--')) return fail(`${flag} requires one non-empty value`);
+      values[flag] = value;
+    } else if (arg === '--json' || arg === '--strict') {
+      continue;
+    } else if (arg.startsWith('-')) {
+      return fail(`unknown audit option: ${arg}`);
+    } else if (target !== null) {
+      return fail('audit accepts only one project directory');
+    } else {
+      target = arg;
+    }
+  }
+  if (values['--candidate-type'] && !values['--candidate']) return fail('--candidate-type requires --candidate');
+  const candidate = values['--candidate'] ? { id: values['--candidate'], type: values['--candidate-type'] ?? 'git_commit', immutable: true } : null;
+  const root = resolveTarget(target ?? '.');
+  const report = auditProject(root, { candidate });
   console.log(jsonOutput ? JSON.stringify(report, null, 2) : formatAudit(report));
   process.exitCode = policyExitCode(report, root);
 }
 
 function help() {
-  console.log(`TSAL local tooling\n\nUsage:\n  tsal init <project-directory>\n  tsal doctor <project-directory>\n  tsal inspect <project-directory>\n  tsal audit <project-directory> [--json] [--strict]\n\nAudit exit behavior:\n  advisory/default: nonzero only for BLOCKING conformance\n  manifest strict mode: enforce conformance.minimum_result\n  --strict: override and require PROVEN\n\nThe CLI is local-first. It does not require AI, a backend, or TOS.`);
+  console.log(`TSAL local tooling\n\nUsage:\n  tsal init <project-directory>\n  tsal doctor <project-directory>\n  tsal inspect <project-directory>\n  tsal audit <project-directory> [--json] [--strict] [--candidate ID] [--candidate-type TYPE]\n\nAudit exit behavior:\n  advisory/default: nonzero only for BLOCKING conformance\n  manifest strict mode: enforce conformance.minimum_result\n  --strict: override and require PROVEN\n  --candidate: require matching immutable evidence (type defaults to git_commit)\n  Without --candidate the report is not exact-candidate acceptance.\n\nThe CLI is local-first. It does not require AI, a backend, or TOS.`);
 }
 
 switch (command) {
