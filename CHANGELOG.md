@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.8 — 2026-11-21
+
+Rewrote the quick start around the tested read-only example and clarified how to audit a workload.
+
 ## 0.3.7 — 2026-11-21
 
 Moved the XQueue retrospective out of the active tree. [Archived reference material](https://github.com/peteywee/TSAL/tree/2ad3e77703a2691e04fdc5935eef1d0f92357e85/references/xqueue).
