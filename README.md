@@ -6,7 +6,7 @@ TSAL is a local-first, technology-agnostic automation engineering standard with 
 
 > **Can this task be automated with bounded authority, truthful state, controlled failure, recoverability, and evidence?**
 
-Current version: **0.3.6 — full input schema validation**
+Current version: **0.3.7**
 
 ## Architecture
 
@@ -246,8 +246,7 @@ TSAL/
 ├── templates/
 ├── tooling/
 ├── test/
-├── examples/
-└── references/xqueue/
+└── examples/
 ```
 
 ## Fundamental rules
@@ -291,19 +290,6 @@ TSAL/
 | R1 | Local/reversible mutation | state, rollback, implementation evidence |
 | R2 | External/reversible mutation | authority, idempotency, bounded retry/reconciliation, runtime evidence |
 | R3 | Public, financial, destructive, security-sensitive, difficult-to-reverse | exact-candidate, deployment, runtime, recovery, owner-reserved boundaries, deterministic privileged admission where mechanically evaluable |
-
-## XQueue
-
-XQueue is the first reference workload, not a dependency. [`references/xqueue/LESSONS-LEARNED.md`](./references/xqueue/LESSONS-LEARNED.md) records which lessons were promoted and which implementation choices stayed project-specific.
-
-XQueue dogfooding drove 0.2.1, 0.3.0, 0.3.1, 0.3.2, 0.3.3, and 0.3.4:
-
-- 0.2.1: declared-path validation, complete Git-trackable project sockets, and enforced release versioning.
-- 0.3.0: configuration-vs-runtime evidence separation, claim-level conformance, backward-compatible legacy audit, and separated retry semantics.
-- 0.3.1: project-native evidence JSON can coexist with TSAL claim records without false blocking.
-- 0.3.2: destructive-absence semantics, authority-preserving deployment, and authoritative post-deploy control-plane reconciliation.
-- 0.3.3: explicit TSAL/TOS/workload responsibility boundaries and independent standard-versus-workload version evolution.
-- 0.3.4: controlled authority terminology plus the generic separation between discretionary control-plane reasoning and deterministic privileged admission.
 
 ## Versioning
 
